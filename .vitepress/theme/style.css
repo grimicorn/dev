@@ -96,3 +96,34 @@ body {
 .animate-dot {
   animation: gx-dot 2s ease-in-out infinite;
 }
+
+.colorful-btn {
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: #6f6c66;
+  background-image: linear-gradient(
+    90deg,
+    #ff2d9b,
+    #fb923c,
+    #facc15,
+    #a3e635,
+    #22d3ee,
+    #a855f7,
+    #ff2d9b
+  );
+  background-size: 200% auto;
+  background-color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  transition: color 0.2s ease;
+}
+
+.colorful-btn:hover {
+  color: transparent;
+  animation-name: gx-rainbow-pan;
+  animation-duration: var(--gx-rainbow-dur, 7s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}

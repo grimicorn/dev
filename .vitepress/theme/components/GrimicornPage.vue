@@ -573,7 +573,12 @@ onUnmounted(() => {
         class="flex justify-between border-t border-white/[0.07] py-7 text-[11px] text-[#6f6c66]"
       >
         <span>grimicorn.dev &mdash; &copy; 2026</span>
-        <span>built dark &middot; shipped colorful</span>
+        <span
+          >built dark &middot; shipped
+          <button class="colorful-btn" @click="toggleRave">
+            colorful
+          </button></span
+        >
       </footer>
     </div>
 
