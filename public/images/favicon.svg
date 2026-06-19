@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"><metadata><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description><dc:creator>RealFaviconGenerator</dc:creator><dc:source>https://realfavicongenerator.net</dc:source></rdf:Description></rdf:RDF></metadata><defs>
+    <linearGradient id="gx-horn" x1="0.3" y1="1" x2="0.7" y2="0">
+      <stop offset="0" stop-color="#a855f7"></stop>
+      <stop offset="0.2" stop-color="#22d3ee"></stop>
+      <stop offset="0.4" stop-color="#a3e635"></stop>
+      <stop offset="0.6" stop-color="#facc15"></stop>
+      <stop offset="0.8" stop-color="#fb923c"></stop>
+      <stop offset="1" stop-color="#ff2d9b"></stop>
+    </linearGradient>
+  </defs><rect width="64" height="64" rx="14" fill="#0a0a0b"></rect><path fill="#ecebe6" d="M36 23 C 38 18, 42 15, 46 14 C 45 19, 42 23, 38 25 Z"></path><path fill="#ecebe6" d="
+    M35 22
+    C 41 24, 45 30, 43 37
+    C 41 43, 36 48, 29 48
+    C 23 48, 17 45, 13 41
+    C 17 34, 22 28, 30 24
+    C 32 23, 33 22, 35 22
+    Z"></path><path fill="url(#gx-horn)" d="M29 27 L36 24 L27 3 Z"></path><g stroke="#0a0a0b" stroke-width="1.1" stroke-linecap="round" opacity="0.45">
+    <path d="M30.5 18l4-1.4"></path>
+    <path d="M28.8 12l3.7-1.3"></path>
+    <path d="M27.6 7l3.1-1.1"></path>
+  </g><ellipse cx="32" cy="32" rx="3" ry="3.7" fill="#0a0a0b"></ellipse><circle cx="17" cy="39" r="1.9" fill="#0a0a0b"></circle><path stroke="#0a0a0b" stroke-width="1.6" stroke-linecap="round" d="M19 44l3-0.4M25 45l3-0.4"></path></svg>
