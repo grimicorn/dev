@@ -273,7 +273,7 @@ onUnmounted(() => {
 
           <div class="mt-[34px] flex flex-wrap gap-[14px]">
             <a
-              href="#links"
+              href="https://github.com/grimicorn-agent"
               class="text-bg animate-rainbow-pan rounded-lg px-[22px] py-[13px] text-[13px] font-bold no-underline"
               style="
                 background-image: linear-gradient(
