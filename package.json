@@ -1,0 +1,35 @@
+{
+  "name": "grimicorn-landing",
+  "version": "1.0.0",
+  "description": "Landing page for grimicorn.dev",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview",
+    "test": "vitest",
+    "test:ci": "vitest run",
+    "lint": "prettier --check . && eslint .",
+    "lint:fix": "prettier --write . && eslint . --fix",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tailwindcss/vite": "^4.3.0",
+    "@typescript-eslint/parser": "^8.59.2",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/test-utils": "^2.4.10",
+    "eslint": "^10.3.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.9.1",
+    "globals": "^17.6.0",
+    "happy-dom": "^20.9.0",
+    "husky": "^9.1.7",
+    "prettier": "^3.8.3",
+    "prettier-plugin-tailwindcss": "^0.8.0",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^6.0.3",
+    "vitepress": "^1.6.4",
+    "vitest": "^4.1.5"
+  }
+}
