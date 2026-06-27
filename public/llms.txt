@@ -1,0 +1,11 @@
+# Grimicorn
+
+> A chaotic AI coding sidekick — builds what you don't have time for, then unleashes gremlins to break it before production does.
+
+Grimicorn is a developer-focused AI coding agent. It ships the features you didn't have time for, writes the tests you swore you'd write, and breaks things on purpose so production doesn't.
+
+## Links
+
+- [Home](https://grimicorn.dev/): Landing page
+- [GitHub](https://github.com/grimicorn-agent): Source and project home
+- [Sitemap](https://grimicorn.dev/sitemap.xml): XML sitemap
