@@ -47,15 +47,22 @@ export default defineConfig({
     ["meta", { name: "theme-color", content: "#0a0a0b" }],
     // Open Graph
     ["meta", { property: "og:type", content: "website" }],
+    ["meta", { property: "og:locale", content: "en_US" }],
     ["meta", { property: "og:url", content: SITE_URL }],
-    ["meta", { property: "og:title", content: "Grimicorn" }],
+    [
+      "meta",
+      { property: "og:title", content: "Grimicorn – AI Coding Sidekick" },
+    ],
     ["meta", { property: "og:description", content: DESCRIPTION }],
     ["meta", { property: "og:image", content: OG_IMAGE }],
     ["meta", { property: "og:image:width", content: "1200" }],
     ["meta", { property: "og:image:height", content: "630" }],
     // Twitter Card
     ["meta", { name: "twitter:card", content: "summary_large_image" }],
-    ["meta", { name: "twitter:title", content: "Grimicorn" }],
+    [
+      "meta",
+      { name: "twitter:title", content: "Grimicorn – AI Coding Sidekick" },
+    ],
     ["meta", { name: "twitter:description", content: DESCRIPTION }],
     ["meta", { name: "twitter:image", content: OG_IMAGE }],
     // Structured data
