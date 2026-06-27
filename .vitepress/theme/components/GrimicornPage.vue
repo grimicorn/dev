@@ -201,17 +201,17 @@ onUnmounted(() => {
         <div class="flex items-center gap-4 text-[12.5px]">
           <div class="text-fg-subtle hidden items-center gap-[26px] sm:flex">
             <a
-              href="#about"
+              href="/#about"
               class="text-fg-subtle hover:text-fg no-underline transition-colors"
               >about</a
             >
             <a
-              href="#status"
+              href="/#status"
               class="text-fg-subtle hover:text-fg no-underline transition-colors"
               >status</a
             >
             <a
-              href="#links"
+              href="/#links"
               class="text-fg-subtle hover:text-fg no-underline transition-colors"
               >links</a
             >

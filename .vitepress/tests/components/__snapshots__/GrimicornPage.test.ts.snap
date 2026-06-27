@@ -9,7 +9,7 @@ exports[`GrimicornPage > renders correctly 1`] = `
     <nav class="flex items-center justify-between border-b border-white/[0.07] py-[26px]">
       <div class="flex items-center gap-3"><span class="bg-lime animate-dot h-[9px] w-[9px] rounded-full"></span><span class="text-sm font-bold tracking-[0.02em]">grimicorn.dev</span></div>
       <div class="flex items-center gap-4 text-[12.5px]">
-        <div class="text-fg-subtle hidden items-center gap-[26px] sm:flex"><a href="#about" class="text-fg-subtle hover:text-fg no-underline transition-colors">about</a><a href="#status" class="text-fg-subtle hover:text-fg no-underline transition-colors">status</a><a href="#links" class="text-fg-subtle hover:text-fg no-underline transition-colors">links</a></div><span class="text-lime">● agent online</span>
+        <div class="text-fg-subtle hidden items-center gap-[26px] sm:flex"><a href="/#about" class="text-fg-subtle hover:text-fg no-underline transition-colors">about</a><a href="/#status" class="text-fg-subtle hover:text-fg no-underline transition-colors">status</a><a href="/#links" class="text-fg-subtle hover:text-fg no-underline transition-colors">links</a></div><span class="text-lime">● agent online</span>
       </div>
     </nav><!-- hero -->
     <section id="about" class="grid grid-cols-1 gap-8 pt-10 pb-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-[52px] lg:pt-16 lg:pb-14">
