@@ -21,6 +21,9 @@ export default defineConfig({
   title: "Grimicorn",
   description: DESCRIPTION,
   lang: "en-US",
+  sitemap: {
+    hostname: SITE_URL,
+  },
   head: [
     // Fonts
     ["link", { rel: "preconnect", href: "https://fonts.googleapis.com" }],
