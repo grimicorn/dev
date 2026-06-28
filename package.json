@@ -9,6 +9,7 @@
     "preview": "vitepress preview",
     "test": "vitest",
     "test:ci": "vitest run",
+    "audit": "npm audit --omit=dev --audit-level=high",
     "lint": "prettier --check . && eslint .",
     "lint:fix": "prettier --write . && eslint . --fix",
     "prepare": "husky"

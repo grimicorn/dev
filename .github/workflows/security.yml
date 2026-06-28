@@ -73,5 +73,9 @@ jobs:
       - name: Audit summary (report only, never fails)
         run: npm audit || true
 
-      - name: Audit gate (fail on high or critical)
-        run: npm audit --audit-level=high
+      # Gates on production deps only. All vulnerable packages here (vitepress,
+      # vite, esbuild) are devDependencies with dev-server-only advisories and no
+      # upstream fix while vitepress pins vite 5 — they never ship to the static
+      # site. `npm run audit` === `npm audit --omit=dev --audit-level=high`.
+      - name: Audit gate (fail on high or critical in production deps)
+        run: npm run audit
