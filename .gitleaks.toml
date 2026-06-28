@@ -1,0 +1,38 @@
+# Gitleaks configuration for grimicorn.dev.
+# Extends the bundled default ruleset and layers on project-specific rules for
+# the secrets this stack actually uses: Clerk secret keys and Neon/Postgres
+# connection strings. Publishable keys (pk_live_/pk_test_) are public by design
+# and are intentionally NOT flagged.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "clerk-secret-key"
+description = "Clerk secret key (sk_live_ / sk_test_)"
+regex = '''sk_(?:live|test)_[A-Za-z0-9]{16,}'''
+keywords = [
+  "sk_live_",
+  "sk_test_",
+]
+
+[[rules]]
+id = "postgres-connection-string-with-credentials"
+description = "Postgres/Neon connection string containing user:password credentials"
+regex = '''postgres(?:ql)?:\/\/[^\s:@\/]+:[^\s:@\/]+@[^\s\/]+'''
+keywords = [
+  "postgres://",
+  "postgresql://",
+]
+
+[allowlist]
+description = "Allow documented placeholders and test fixtures"
+# Excludes documented placeholders: example/sample env files, any *.example
+# file, and fixture directories. Test source files are still scanned, so a
+# secret hardcoded into a test is caught rather than silently allowed.
+paths = [
+  '''(^|/)\.env\.example$''',
+  '''(^|/)\.env\.sample$''',
+  '''\.example$''',
+  '''(^|/)(fixtures|__fixtures__)/''',
+]
