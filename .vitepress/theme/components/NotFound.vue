@@ -131,9 +131,9 @@ onMounted(() => {
         <div class="px-[18px] py-4 sm:px-6">
           <div>
             <span class="text-lime">grimicorn</span
-            ><span class="text-[#6b7280]">@</span
+            ><span class="text-[#737b8a]">@</span
             ><span class="text-cyan">dev</span>
-            <span class="text-[#6b7280]"> ~ %</span> cat
+            <span class="text-[#737b8a]"> ~ %</span> cat
             <span class="text-fg-muted">{{ displayPath }}</span>
           </div>
           <div class="text-[#cdcac4]">
@@ -143,9 +143,9 @@ onMounted(() => {
           </div>
           <div>
             <span class="text-lime">grimicorn</span
-            ><span class="text-[#6b7280]">@</span
+            ><span class="text-[#737b8a]">@</span
             ><span class="text-cyan">dev</span>
-            <span class="text-[#6b7280]"> ~ %</span>
+            <span class="text-[#737b8a]"> ~ %</span>
             <span
               class="animate-blink ml-1 inline-block h-[15px] w-[9px] bg-[#d4d4d8] align-[-2px]"
             />

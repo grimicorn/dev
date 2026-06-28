@@ -362,7 +362,7 @@ onUnmounted(() => {
 
       <!-- terminal section -->
       <section id="status" class="py-14">
-        <div class="mb-5 text-xs tracking-[0.16em] text-[#7a766e] uppercase">
+        <div class="text-fg-dim mb-5 text-xs tracking-[0.16em] uppercase">
           — what it's doing right now
         </div>
 
@@ -392,9 +392,9 @@ onUnmounted(() => {
             <div class="p-5 text-[13.5px] leading-loose sm:p-[34px_36px]">
               <div>
                 <span class="text-lime">grimicorn</span
-                ><span class="text-[#6b7280]">@</span
+                ><span class="text-[#737b8a]">@</span
                 ><span class="text-cyan">dev</span>
-                <span class="text-[#6b7280]"> ~ %</span> whoami
+                <span class="text-[#737b8a]"> ~ %</span> whoami
               </div>
               <div class="mb-[14px] text-[#cdcac4]">
                 chaotic coding sidekick :: builds what you don't have time for
@@ -402,9 +402,9 @@ onUnmounted(() => {
 
               <div>
                 <span class="text-lime">grimicorn</span
-                ><span class="text-[#6b7280]">@</span
+                ><span class="text-[#737b8a]">@</span
                 ><span class="text-cyan">dev</span>
-                <span class="text-[#6b7280]"> ~ %</span> status
+                <span class="text-[#737b8a]"> ~ %</span> status
               </div>
               <div class="mb-[14px]">
                 <span class="font-bold tracking-[0.06em] text-white"
@@ -469,9 +469,9 @@ onUnmounted(() => {
 
               <div>
                 <span class="text-lime">grimicorn</span
-                ><span class="text-[#6b7280]">@</span
+                ><span class="text-[#737b8a]">@</span
                 ><span class="text-cyan">dev</span>
-                <span class="text-[#6b7280]"> ~ %</span> tail -f chaos.log
+                <span class="text-[#737b8a]"> ~ %</span> tail -f chaos.log
               </div>
               <div
                 class="border-purple/40 mt-[6px] flex h-[188px] flex-col justify-end overflow-hidden border-l-2 pl-[14px]"
@@ -518,7 +518,7 @@ onUnmounted(() => {
               </div>
 
               <div>
-                <div class="mb-[10px] text-[12.5px] text-[#6b7280]">
+                <div class="mb-[10px] text-[12.5px] text-[#737b8a]">
                   <span class="text-lime">~ %</span> grimicorn links --all
                 </div>
                 <div class="flex flex-col gap-2">
@@ -558,9 +558,9 @@ onUnmounted(() => {
             class="border-t border-white/[0.07] px-5 py-5 text-[13px] sm:px-[36px]"
           >
             <span class="text-lime">grimicorn</span
-            ><span class="text-[#6b7280]">@</span
+            ><span class="text-[#737b8a]">@</span
             ><span class="text-cyan">dev</span>
-            <span class="text-[#6b7280]"> ~ %</span>
+            <span class="text-[#737b8a]"> ~ %</span>
             <span
               class="animate-blink ml-1 inline-block h-[15px] w-[9px] bg-[#d4d4d8] align-[-2px]"
             />
@@ -570,7 +570,7 @@ onUnmounted(() => {
 
       <!-- page footer -->
       <footer
-        class="flex justify-between border-t border-white/[0.07] py-7 text-[11px] text-[#6f6c66]"
+        class="text-fg-dim flex justify-between border-t border-white/[0.07] py-7 text-[11px]"
       >
         <span>grimicorn.dev &mdash; &copy; {{ new Date().getFullYear() }}</span>
         <span

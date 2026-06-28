@@ -14,9 +14,9 @@ exports[`NotFound > renders correctly 1`] = `
     <div class="mx-auto max-w-[520px] overflow-hidden rounded-xl border border-white/[0.08] text-left text-[13px] leading-loose text-[#d4d4d8]" style="background: #08080a; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);">
       <div class="flex items-center gap-[14px] border-b border-white/[0.07] bg-white/[0.015] px-[18px] py-3"><span class="flex gap-2"><span class="bg-pink h-3 w-3 rounded-full"></span><span class="bg-yellow h-3 w-3 rounded-full"></span><span class="bg-lime h-3 w-3 rounded-full"></span></span><span class="text-fg-subtle ml-[6px] truncate text-[12.5px]">grimicorn-agent — zsh</span></div>
       <div class="px-[18px] py-4 sm:px-6">
-        <div><span class="text-lime">grimicorn</span><span class="text-[#6b7280]">@</span><span class="text-cyan">dev</span><span class="text-[#6b7280]"> ~ %</span> cat <span class="text-fg-muted">/</span></div>
+        <div><span class="text-lime">grimicorn</span><span class="text-[#737b8a]">@</span><span class="text-cyan">dev</span><span class="text-[#737b8a]"> ~ %</span> cat <span class="text-fg-muted">/</span></div>
         <div class="text-[#cdcac4]"> cat: <span class="text-fg-muted">/</span>: <span class="text-pink">no such page, only gremlins</span></div>
-        <div><span class="text-lime">grimicorn</span><span class="text-[#6b7280]">@</span><span class="text-cyan">dev</span><span class="text-[#6b7280]"> ~ %</span><span class="animate-blink ml-1 inline-block h-[15px] w-[9px] bg-[#d4d4d8] align-[-2px]"></span></div>
+        <div><span class="text-lime">grimicorn</span><span class="text-[#737b8a]">@</span><span class="text-cyan">dev</span><span class="text-[#737b8a]"> ~ %</span><span class="animate-blink ml-1 inline-block h-[15px] w-[9px] bg-[#d4d4d8] align-[-2px]"></span></div>
       </div>
     </div>
   </div>

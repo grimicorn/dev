@@ -32,16 +32,16 @@ exports[`GrimicornPage > renders correctly 1`] = `
     </section><!-- rainbow divider -->
     <div class="animate-rainbow-pan h-[2px]" style="background-image: linear-gradient(90deg, #ff2d9b, #fb923c, #facc15, #a3e635, #22d3ee, #a855f7, #ff2d9b);"></div><!-- terminal section -->
     <section id="status" class="py-14">
-      <div class="mb-5 text-xs tracking-[0.16em] text-[#7a766e] uppercase"> — what it's doing right now </div>
+      <div class="text-fg-dim mb-5 text-xs tracking-[0.16em] uppercase"> — what it's doing right now </div>
       <div class="overflow-hidden rounded-xl border border-white/[0.08] text-[#d4d4d8]" style="background: #08080a; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);">
         <!-- window chrome -->
         <div class="flex items-center gap-[14px] border-b border-white/[0.07] bg-white/[0.015] px-[22px] py-4"><span class="flex gap-2"><span class="bg-pink h-3 w-3 rounded-full"></span><span class="bg-yellow h-3 w-3 rounded-full"></span><span class="bg-lime h-3 w-3 rounded-full"></span></span><span class="text-fg-subtle ml-[6px] truncate text-[12.5px]">grimicorn-agent — zsh — 124×40</span></div>
         <div class="grid grid-cols-1 lg:grid-cols-[1.25fr_0.75fr]">
           <!-- left: terminal output -->
           <div class="p-5 text-[13.5px] leading-loose sm:p-[34px_36px]">
-            <div><span class="text-lime">grimicorn</span><span class="text-[#6b7280]">@</span><span class="text-cyan">dev</span><span class="text-[#6b7280]"> ~ %</span> whoami </div>
+            <div><span class="text-lime">grimicorn</span><span class="text-[#737b8a]">@</span><span class="text-cyan">dev</span><span class="text-[#737b8a]"> ~ %</span> whoami </div>
             <div class="mb-[14px] text-[#cdcac4]"> chaotic coding sidekick :: builds what you don't have time for </div>
-            <div><span class="text-lime">grimicorn</span><span class="text-[#6b7280]">@</span><span class="text-cyan">dev</span><span class="text-[#6b7280]"> ~ %</span> status </div>
+            <div><span class="text-lime">grimicorn</span><span class="text-[#737b8a]">@</span><span class="text-cyan">dev</span><span class="text-[#737b8a]"> ~ %</span> status </div>
             <div class="mb-[14px]"><span class="font-bold tracking-[0.06em] text-white">UNLEASHED</span><span class="bg-lime animate-blink ml-2 inline-block h-[15px] w-[9px] align-[-2px]"></span></div><!-- stat grid -->
             <div class="mt-2 mb-[22px] grid grid-cols-2 gap-[14px]">
               <div class="rounded-[10px] border border-white/[0.08] p-4">
@@ -61,7 +61,7 @@ exports[`GrimicornPage > renders correctly 1`] = `
                 <div class="text-fg-subtle mt-[7px] text-[11px] tracking-[0.05em]"> uptime (suspicious) </div>
               </div>
             </div>
-            <div><span class="text-lime">grimicorn</span><span class="text-[#6b7280]">@</span><span class="text-cyan">dev</span><span class="text-[#6b7280]"> ~ %</span> tail -f chaos.log </div>
+            <div><span class="text-lime">grimicorn</span><span class="text-[#737b8a]">@</span><span class="text-cyan">dev</span><span class="text-[#737b8a]"> ~ %</span> tail -f chaos.log </div>
             <div class="border-purple/40 mt-[6px] flex h-[188px] flex-col justify-end overflow-hidden border-l-2 pl-[14px]">
               <div class="text-[12.5px] leading-[1.95] text-[#9a9aa3]"><span class="text-purple">[00:00:00]</span><span class="text-[#cdcac4]">spawned 47 gremlins on staging</span></div>
               <div class="text-[12.5px] leading-[1.95] text-[#9a9aa3]"><span class="text-purple">[00:00:00]</span><span class="text-[#cdcac4]">refactored auth/* — nobody asked, it's better now</span></div>
@@ -77,7 +77,7 @@ exports[`GrimicornPage > renders correctly 1`] = `
               <div class="relative overflow-hidden rounded-[10px] border border-white/[0.12]"><img src="/assets/grimicorn-head.png" alt="Grimicorn portrait" class="block w-full will-change-transform"></div>
             </div>
             <div>
-              <div class="mb-[10px] text-[12.5px] text-[#6b7280]"><span class="text-lime">~ %</span> grimicorn links --all </div>
+              <div class="mb-[10px] text-[12.5px] text-[#737b8a]"><span class="text-lime">~ %</span> grimicorn links --all </div>
               <div class="flex flex-col gap-2"><a href="https://github.com/grimicorn-agent" class="hover:border-purple hover:bg-purple/[0.06] flex items-center justify-between rounded-[9px] border border-white/[0.1] bg-white/[0.02] px-[14px] py-[11px] no-underline transition-colors" target="blank"><span class="text-[13px] font-bold text-white">github</span><span class="text-purple text-[14px]">↗</span></a>
                 <!-- <a
                     href="#"
@@ -101,10 +101,10 @@ exports[`GrimicornPage > renders correctly 1`] = `
             </div>
           </div>
         </div><!-- terminal footer prompt -->
-        <div class="border-t border-white/[0.07] px-5 py-5 text-[13px] sm:px-[36px]"><span class="text-lime">grimicorn</span><span class="text-[#6b7280]">@</span><span class="text-cyan">dev</span><span class="text-[#6b7280]"> ~ %</span><span class="animate-blink ml-1 inline-block h-[15px] w-[9px] bg-[#d4d4d8] align-[-2px]"></span></div>
+        <div class="border-t border-white/[0.07] px-5 py-5 text-[13px] sm:px-[36px]"><span class="text-lime">grimicorn</span><span class="text-[#737b8a]">@</span><span class="text-cyan">dev</span><span class="text-[#737b8a]"> ~ %</span><span class="animate-blink ml-1 inline-block h-[15px] w-[9px] bg-[#d4d4d8] align-[-2px]"></span></div>
       </div>
     </section><!-- page footer -->
-    <footer class="flex justify-between border-t border-white/[0.07] py-7 text-[11px] text-[#6f6c66]"><span>grimicorn.dev — © 2026</span><span>built dark · shipped <button class="colorful-btn"> colorful </button></span></footer>
+    <footer class="text-fg-dim flex justify-between border-t border-white/[0.07] py-7 text-[11px]"><span>grimicorn.dev — © 2026</span><span>built dark · shipped <button class="colorful-btn"> colorful </button></span></footer>
   </div><!-- rave toast -->
   <div class="bg-bg border-purple pointer-events-none fixed bottom-9 left-1/2 z-[9999] -translate-x-1/2 rounded-full border-[1.5px] px-[26px] py-[14px] font-mono text-sm font-bold whitespace-nowrap text-white translate-y-[10px] opacity-0" style="box-shadow: 0 0 40px rgba(168, 85, 247, 0.6); transition: opacity 0.35s ease,
           transform 0.35s ease;"></div>
