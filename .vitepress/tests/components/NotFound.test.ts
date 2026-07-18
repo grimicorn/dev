@@ -44,4 +44,16 @@ describe("NotFound", () => {
     expect(homeLink.exists()).toBe(true);
     wrapper.unmount();
   });
+
+  it("opens the github link safely in a new tab", async () => {
+    const wrapper = shallowMount(NotFound);
+    await wrapper.vm.$nextTick();
+    const githubLink = wrapper.find(
+      'a[href="https://github.com/grimicorn-agent"]',
+    );
+    expect(githubLink.exists()).toBe(true);
+    expect(githubLink.attributes("target")).toBe("_blank");
+    expect(githubLink.attributes("rel")).toBe("noopener noreferrer");
+    wrapper.unmount();
+  });
 });

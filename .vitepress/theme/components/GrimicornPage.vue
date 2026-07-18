@@ -525,7 +525,8 @@ onUnmounted(() => {
                   <a
                     href="https://github.com/grimicorn-agent"
                     class="hover:border-purple hover:bg-purple/[0.06] flex items-center justify-between rounded-[9px] border border-white/[0.1] bg-white/[0.02] px-[14px] py-[11px] no-underline transition-colors"
-                    target="blank"
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
                     <span class="text-[13px] font-bold text-white">github</span>
                     <span class="text-purple text-[14px]">&#x2197;</span>

@@ -72,4 +72,16 @@ describe("GrimicornPage", () => {
     expect(toast?.classes()).toContain("opacity-0");
     wrapper.unmount();
   });
+
+  it("opens the sidebar github link safely in a new tab", async () => {
+    const wrapper = shallowMount(GrimicornPage);
+    await wrapper.vm.$nextTick();
+    const githubLink = wrapper.find(
+      'a[href="https://github.com/grimicorn-agent"][target]',
+    );
+    expect(githubLink.exists()).toBe(true);
+    expect(githubLink.attributes("target")).toBe("_blank");
+    expect(githubLink.attributes("rel")).toBe("noopener noreferrer");
+    wrapper.unmount();
+  });
 });
