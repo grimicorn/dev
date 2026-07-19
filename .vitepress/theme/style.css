@@ -97,6 +97,30 @@ body {
   animation: gx-dot 2s ease-in-out infinite;
 }
 
+/* Accessibility guard: freeze the always-on hero/terminal/404 animations at
+   a static, non-distracting state for visitors who have asked their OS for
+   reduced motion, instead of leaving them looping indefinitely. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-rainbow-pan,
+  .animate-glow-pulse,
+  .animate-blink,
+  .animate-dot {
+    animation: none;
+  }
+
+  .animate-glow-pulse {
+    opacity: 0.4;
+  }
+
+  .animate-blink {
+    opacity: 1;
+  }
+
+  .animate-dot {
+    box-shadow: none;
+  }
+}
+
 .colorful-btn {
   border: none;
   padding: 0;
