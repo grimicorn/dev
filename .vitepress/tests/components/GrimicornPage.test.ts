@@ -141,6 +141,18 @@ describe("GrimicornPage", () => {
     wrapper.unmount();
   });
 
+  it("completes the sequence when the b/a keys arrive uppercase", async () => {
+    const wrapper = shallowMount(GrimicornPage);
+    await wrapper.vm.$nextTick();
+
+    const uppercaseTail = [...KONAMI_SEQUENCE.slice(0, -2), "B", "A"];
+    await pressSequence(wrapper, uppercaseTail);
+
+    expect(getPageFilter(wrapper)).toBe(RAVE_FILTER);
+
+    wrapper.unmount();
+  });
+
   it("does not toggle rave mode on a partial Konami sequence", async () => {
     const wrapper = shallowMount(GrimicornPage);
     await wrapper.vm.$nextTick();
