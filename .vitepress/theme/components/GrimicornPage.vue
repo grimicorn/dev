@@ -326,12 +326,24 @@ onUnmounted(() => {
             "
           >
             <div class="bg-bg overflow-hidden rounded-[9px]">
-              <img
-                ref="imageHeroRef"
-                src="/assets/grimicorn-hero.png"
-                alt="Grimicorn — skeletal rainbow unicorn"
-                class="block w-full will-change-transform"
-              />
+              <picture>
+                <source
+                  srcset="/assets/grimicorn-hero.avif"
+                  type="image/avif"
+                />
+                <source
+                  srcset="/assets/grimicorn-hero.webp"
+                  type="image/webp"
+                />
+                <img
+                  ref="imageHeroRef"
+                  src="/assets/grimicorn-hero.png"
+                  alt="Grimicorn — skeletal rainbow unicorn"
+                  width="1824"
+                  height="1824"
+                  class="block w-full will-change-transform"
+                />
+              </picture>
             </div>
           </div>
           <div
@@ -508,12 +520,24 @@ onUnmounted(() => {
                 <div
                   class="relative overflow-hidden rounded-[10px] border border-white/[0.12]"
                 >
-                  <img
-                    ref="imagePortraitRef"
-                    src="/assets/grimicorn-head.png"
-                    alt="Grimicorn portrait"
-                    class="block w-full will-change-transform"
-                  />
+                  <picture>
+                    <source
+                      srcset="/assets/grimicorn-head.avif"
+                      type="image/avif"
+                    />
+                    <source
+                      srcset="/assets/grimicorn-head.webp"
+                      type="image/webp"
+                    />
+                    <img
+                      ref="imagePortraitRef"
+                      src="/assets/grimicorn-head.png"
+                      alt="Grimicorn portrait"
+                      width="1237"
+                      height="1237"
+                      class="block w-full will-change-transform"
+                    />
+                  </picture>
                 </div>
               </div>
 
