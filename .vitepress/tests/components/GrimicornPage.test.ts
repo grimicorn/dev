@@ -52,7 +52,9 @@ function getGlowDuration(wrapper: GrimicornWrapper) {
 function findToast(wrapper: GrimicornWrapper) {
   return wrapper
     .findAll(".fixed")
-    .find((el) => el.classes().some((c) => c.includes("rounded-full")));
+    .find((element) =>
+      element.classes().some((className) => className.includes("rounded-full")),
+    );
 }
 
 describe("GrimicornPage", () => {
