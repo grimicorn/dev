@@ -126,15 +126,41 @@ describe("GrimicornPage", () => {
     wrapper.unmount();
   });
 
+  it("opens every github link safely in a new tab", async () => {
+    const wrapper = shallowMount(GrimicornPage);
+    await wrapper.vm.$nextTick();
+    const githubLinks = wrapper.findAll(
+      'a[href="https://github.com/grimicorn-agent"]',
+    );
+    expect(githubLinks.length).toBe(2);
+    githubLinks.forEach((githubLink) => {
+      expect(githubLink.attributes("target")).toBe("_blank");
+      expect(githubLink.attributes("rel")).toBe("noopener noreferrer");
+    });
+    wrapper.unmount();
+  });
+
+  it("opens the hero 'view on github' button safely in a new tab", async () => {
+    const wrapper = shallowMount(GrimicornPage);
+    await wrapper.vm.$nextTick();
+    const heroLink = wrapper.find(
+      'a[href="https://github.com/grimicorn-agent"].animate-rainbow-pan',
+    );
+    expect(heroLink.exists()).toBe(true);
+    expect(heroLink.attributes("target")).toBe("_blank");
+    expect(heroLink.attributes("rel")).toBe("noopener noreferrer");
+    wrapper.unmount();
+  });
+
   it("opens the sidebar github link safely in a new tab", async () => {
     const wrapper = shallowMount(GrimicornPage);
     await wrapper.vm.$nextTick();
-    const githubLink = wrapper.find(
-      'a[href="https://github.com/grimicorn-agent"][target]',
+    const sidebarLink = wrapper.find(
+      'a[href="https://github.com/grimicorn-agent"].hover\\:border-purple',
     );
-    expect(githubLink.exists()).toBe(true);
-    expect(githubLink.attributes("target")).toBe("_blank");
-    expect(githubLink.attributes("rel")).toBe("noopener noreferrer");
+    expect(sidebarLink.exists()).toBe(true);
+    expect(sidebarLink.attributes("target")).toBe("_blank");
+    expect(sidebarLink.attributes("rel")).toBe("noopener noreferrer");
     wrapper.unmount();
   });
 
