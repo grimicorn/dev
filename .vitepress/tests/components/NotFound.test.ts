@@ -2,6 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { shallowMount } from "@vue/test-utils";
 import NotFound from "@components/NotFound.vue";
 
+const EXTERNAL_HREF_PATTERN = /^(https?:)?\/\//i;
+
+function isExternalHref(href: string) {
+  return EXTERNAL_HREF_PATTERN.test(href);
+}
+
 describe("NotFound", () => {
   beforeEach(() => {
     vi.spyOn(Math, "random").mockReturnValue(0);
@@ -48,7 +54,9 @@ describe("NotFound", () => {
   it("opens every external link safely in a new tab", async () => {
     const wrapper = shallowMount(NotFound);
     await wrapper.vm.$nextTick();
-    const externalLinks = wrapper.findAll('a[href^="http"]');
+    const externalLinks = wrapper
+      .findAll("a[href]")
+      .filter((link) => isExternalHref(link.attributes("href") ?? ""));
     expect(externalLinks.length).toBeGreaterThan(0);
     externalLinks.forEach((externalLink) => {
       expect(externalLink.attributes("target")).toBe("_blank");

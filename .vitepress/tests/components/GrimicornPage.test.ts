@@ -2,6 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { shallowMount, type VueWrapper } from "@vue/test-utils";
 import GrimicornPage from "@components/GrimicornPage.vue";
 
+const EXTERNAL_HREF_PATTERN = /^(https?:)?\/\//i;
+
+function isExternalHref(href: string) {
+  return EXTERNAL_HREF_PATTERN.test(href);
+}
+
 const FIXED_TIME = new Date("2026-01-01T00:00:00.000Z");
 
 type GrimicornWrapper = VueWrapper<InstanceType<typeof GrimicornPage>>;
@@ -129,7 +135,9 @@ describe("GrimicornPage", () => {
   it("opens every external link safely in a new tab", async () => {
     const wrapper = shallowMount(GrimicornPage);
     await wrapper.vm.$nextTick();
-    const externalLinks = wrapper.findAll('a[href^="http"]');
+    const externalLinks = wrapper
+      .findAll("a[href]")
+      .filter((link) => isExternalHref(link.attributes("href") ?? ""));
     expect(externalLinks.length).toBeGreaterThan(0);
     externalLinks.forEach((externalLink) => {
       expect(externalLink.attributes("target")).toBe("_blank");
