@@ -132,16 +132,26 @@ describe("GrimicornPage", () => {
     wrapper.unmount();
   });
 
-  it("opens every external link safely in a new tab", async () => {
+  it("opens every external link rendered in this template safely in a new tab", async () => {
     const wrapper = shallowMount(GrimicornPage);
     await wrapper.vm.$nextTick();
-    const externalLinks = wrapper
-      .findAll("a[href]")
-      .filter((link) => isExternalHref(link.attributes("href") ?? ""));
+    const allLinks = wrapper.findAll("a[href]");
+    const externalLinks = allLinks.filter((link) =>
+      isExternalHref(link.attributes("href") ?? ""),
+    );
+    const internalLinks = allLinks.filter(
+      (link) => !isExternalHref(link.attributes("href") ?? ""),
+    );
     expect(externalLinks.length).toBeGreaterThan(0);
+    expect(internalLinks.length).toBeGreaterThan(0);
     externalLinks.forEach((externalLink) => {
       expect(externalLink.attributes("target")).toBe("_blank");
-      expect(externalLink.attributes("rel")).toBe("noopener noreferrer");
+      const relTokens = (externalLink.attributes("rel") ?? "").split(/\s+/);
+      expect(relTokens).toContain("noopener");
+      expect(relTokens).toContain("noreferrer");
+    });
+    internalLinks.forEach((internalLink) => {
+      expect(internalLink.attributes("target")).toBeUndefined();
     });
     wrapper.unmount();
   });
