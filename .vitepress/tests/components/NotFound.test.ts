@@ -61,7 +61,9 @@ describe("NotFound", () => {
     const internalLinks = allLinks.filter(
       (link) => !isExternalHref(link.attributes("href") ?? ""),
     );
-    expect(externalLinks.length).toBeGreaterThan(0);
+    // Pinned to the one known external github link so deleting it silently
+    // drops out of coverage instead of still passing.
+    expect(externalLinks).toHaveLength(1);
     expect(internalLinks.length).toBeGreaterThan(0);
     externalLinks.forEach((externalLink) => {
       expect(externalLink.attributes("target")).toBe("_blank");

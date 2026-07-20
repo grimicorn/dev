@@ -142,7 +142,9 @@ describe("GrimicornPage", () => {
     const internalLinks = allLinks.filter(
       (link) => !isExternalHref(link.attributes("href") ?? ""),
     );
-    expect(externalLinks.length).toBeGreaterThan(0);
+    // Pinned to the two known github links (hero CTA + sidebar link) so
+    // deleting one silently drops out of coverage instead of still passing.
+    expect(externalLinks).toHaveLength(2);
     expect(internalLinks.length).toBeGreaterThan(0);
     externalLinks.forEach((externalLink) => {
       expect(externalLink.attributes("target")).toBe("_blank");
