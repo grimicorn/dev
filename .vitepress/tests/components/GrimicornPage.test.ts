@@ -2,7 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { shallowMount, type VueWrapper } from "@vue/test-utils";
 import GrimicornPage from "@components/GrimicornPage.vue";
 
-const EXTERNAL_HREF_PATTERN = /^(https?:)?\/\//i;
+// Matches any absolute URL (has a scheme, e.g. "https:", "mailto:") or a
+// protocol-relative URL ("//host/..."). Matching by scheme presence rather
+// than hardcoding http(s) means a mailto:/tel:/ftp: link is correctly
+// treated as external instead of silently falling into "internal".
+const EXTERNAL_HREF_PATTERN = /^([a-z][a-z0-9+.-]*:|\/\/)/i;
 
 function isExternalHref(href: string) {
   return EXTERNAL_HREF_PATTERN.test(href);
