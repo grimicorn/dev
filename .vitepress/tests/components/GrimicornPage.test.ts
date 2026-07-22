@@ -2,6 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { shallowMount, type VueWrapper } from "@vue/test-utils";
 import GrimicornPage from "@components/GrimicornPage.vue";
 
+// Matches any absolute URL (has a scheme, e.g. "https:", "mailto:") or a
+// protocol-relative URL ("//host/..."). Matching by scheme presence rather
+// than hardcoding http(s) means a mailto:/tel:/ftp: link is correctly
+// treated as external instead of silently falling into "internal".
+const EXTERNAL_HREF_PATTERN = /^([a-z][a-z0-9+.-]*:|\/\/)/i;
+
+function isExternalHref(href: string) {
+  return EXTERNAL_HREF_PATTERN.test(href);
+}
+
 const FIXED_TIME = new Date("2026-01-01T00:00:00.000Z");
 
 type GrimicornWrapper = VueWrapper<InstanceType<typeof GrimicornPage>>;
@@ -123,6 +133,32 @@ describe("GrimicornPage", () => {
       .findAll(".fixed")
       .find((el) => el.classes().some((c) => c.includes("rounded-full")));
     expect(toast?.classes()).toContain("opacity-0");
+    wrapper.unmount();
+  });
+
+  it("opens every external link rendered in this template safely in a new tab", async () => {
+    const wrapper = shallowMount(GrimicornPage);
+    await wrapper.vm.$nextTick();
+    const allLinks = wrapper.findAll("a[href]");
+    const externalLinks = allLinks.filter((link) =>
+      isExternalHref(link.attributes("href") ?? ""),
+    );
+    const internalLinks = allLinks.filter(
+      (link) => !isExternalHref(link.attributes("href") ?? ""),
+    );
+    // Pinned to the two known github links (hero CTA + sidebar link) so
+    // deleting one silently drops out of coverage instead of still passing.
+    expect(externalLinks).toHaveLength(2);
+    expect(internalLinks.length).toBeGreaterThan(0);
+    externalLinks.forEach((externalLink) => {
+      expect(externalLink.attributes("target")).toBe("_blank");
+      const relTokens = (externalLink.attributes("rel") ?? "").split(/\s+/);
+      expect(relTokens).toContain("noopener");
+      expect(relTokens).toContain("noreferrer");
+    });
+    internalLinks.forEach((internalLink) => {
+      expect(internalLink.attributes("target")).toBeUndefined();
+    });
     wrapper.unmount();
   });
 

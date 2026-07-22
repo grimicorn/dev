@@ -104,7 +104,8 @@ onMounted(() => {
         </a>
         <a
           href="https://github.com/grimicorn-agent"
-          target="blank"
+          target="_blank"
+          rel="noopener noreferrer"
           class="text-fg rounded-lg border border-white/[0.16] bg-white/[0.02] px-[22px] py-[13px] text-[13px] font-medium no-underline"
         >
           view on github &rarr;
