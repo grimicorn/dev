@@ -271,4 +271,20 @@ describe("GrimicornPage", () => {
 
     wrapper.unmount();
   });
+
+  it("exposes aria-pressed on the colorful button reflecting rave mode state", async () => {
+    const wrapper = shallowMount(GrimicornPage);
+    await wrapper.vm.$nextTick();
+
+    const colorfulButton = wrapper.find(".colorful-btn");
+    expect(colorfulButton.attributes("aria-pressed")).toBe("false");
+
+    await colorfulButton.trigger("click");
+    expect(colorfulButton.attributes("aria-pressed")).toBe("true");
+
+    await colorfulButton.trigger("click");
+    expect(colorfulButton.attributes("aria-pressed")).toBe("false");
+
+    wrapper.unmount();
+  });
 });
