@@ -110,6 +110,31 @@ function mockAnimationFrame() {
   return { runNextFrame, requestAnimationFrameSpy, cancelAnimationFrameSpy };
 }
 
+// Spies on window.addEventListener/removeEventListener without replacing
+// their implementation, so real listener registration (and dispatchMouseMove
+// delivery) keeps working while tests assert on it by identity. Asserting
+// via observed transforms or the rAF spy alone isn't enough: those signals
+// are driven by the rAF loop, not the mousemove listener itself, so a bug
+// that wires mousemove up in the wrong place could still leave those
+// assertions green.
+function mockWindowEventListeners() {
+  const addEventListenerSpy = vi.spyOn(window, "addEventListener");
+  const removeEventListenerSpy = vi.spyOn(window, "removeEventListener");
+
+  function findRegisteredListener(eventName: string) {
+    const matchingCall = addEventListenerSpy.mock.calls.find(
+      ([registeredEventName]) => registeredEventName === eventName,
+    );
+    return matchingCall?.[1];
+  }
+
+  return {
+    findRegisteredListener,
+    addEventListenerSpy,
+    removeEventListenerSpy,
+  };
+}
+
 // A minimal MediaQueryList stand-in so tests can drive
 // `prefers-reduced-motion` deterministically: set its initial value, then
 // flip it at runtime via setMatches() to simulate the visitor toggling the
@@ -396,17 +421,13 @@ describe("GrimicornPage", () => {
 
     it("never starts the requestAnimationFrame loop or listens for mousemove when reduced motion is preferred at mount", async () => {
       mockPrefersReducedMotion(true);
-      const { runNextFrame, requestAnimationFrameSpy } = mockAnimationFrame();
+      const { requestAnimationFrameSpy } = mockAnimationFrame();
+      const { findRegisteredListener } = mockWindowEventListeners();
       const wrapper = shallowMount(GrimicornPage);
       await wrapper.vm.$nextTick();
 
       expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
-
-      dispatchMouseMove(900, 700);
-      runNextFrame();
-
-      expect(getHeroTransform(wrapper)).toBe("");
-      expect(getPortraitTransform(wrapper)).toBe("");
+      expect(findRegisteredListener("mousemove")).toBeUndefined();
 
       wrapper.unmount();
     });
@@ -414,8 +435,13 @@ describe("GrimicornPage", () => {
     it("stops the loop and clears any applied transform when the preference switches to reduced motion at runtime", async () => {
       const { setMatches } = mockPrefersReducedMotion(false);
       const { runNextFrame, cancelAnimationFrameSpy } = mockAnimationFrame();
+      const { findRegisteredListener, removeEventListenerSpy } =
+        mockWindowEventListeners();
       const wrapper = shallowMount(GrimicornPage);
       await wrapper.vm.$nextTick();
+
+      const registeredMouseMoveListener = findRegisteredListener("mousemove");
+      expect(registeredMouseMoveListener).toBeDefined();
 
       dispatchMouseMove(900, 700);
       runNextFrame();
@@ -425,13 +451,10 @@ describe("GrimicornPage", () => {
       await wrapper.vm.$nextTick();
 
       expect(cancelAnimationFrameSpy).toHaveBeenCalled();
-      expect(getHeroTransform(wrapper)).toBe("");
-      expect(getPortraitTransform(wrapper)).toBe("");
-
-      // Further cursor movement must not resurrect the transform: the
-      // mousemove listener should already be gone and no frame scheduled.
-      dispatchMouseMove(50, 50);
-      runNextFrame();
+      expect(removeEventListenerSpy).toHaveBeenCalledWith(
+        "mousemove",
+        registeredMouseMoveListener,
+      );
       expect(getHeroTransform(wrapper)).toBe("");
       expect(getPortraitTransform(wrapper)).toBe("");
 
@@ -512,17 +535,43 @@ describe("GrimicornPage", () => {
 
     it("removes the mousemove listener and stops scheduling frames on unmount", async () => {
       mockPrefersReducedMotion(false);
-      const { runNextFrame, requestAnimationFrameSpy } = mockAnimationFrame();
+      mockAnimationFrame();
+      const { findRegisteredListener, removeEventListenerSpy } =
+        mockWindowEventListeners();
       const wrapper = shallowMount(GrimicornPage);
       await wrapper.vm.$nextTick();
 
+      const registeredMouseMoveListener = findRegisteredListener("mousemove");
+      expect(registeredMouseMoveListener).toBeDefined();
+
       wrapper.unmount();
-      requestAnimationFrameSpy.mockClear();
 
-      dispatchMouseMove(900, 700);
-      runNextFrame();
+      expect(removeEventListenerSpy).toHaveBeenCalledWith(
+        "mousemove",
+        registeredMouseMoveListener,
+      );
+    });
 
-      expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+    it("mounts without throwing and does not start the parallax loop when window.matchMedia is unavailable", async () => {
+      const originalMatchMedia = window.matchMedia;
+      Reflect.deleteProperty(window, "matchMedia");
+      const { requestAnimationFrameSpy } = mockAnimationFrame();
+      const { findRegisteredListener } = mockWindowEventListeners();
+
+      try {
+        let wrapper: GrimicornWrapper | undefined;
+        expect(() => {
+          wrapper = shallowMount(GrimicornPage);
+        }).not.toThrow();
+        await wrapper?.vm.$nextTick();
+
+        expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+        expect(findRegisteredListener("mousemove")).toBeUndefined();
+
+        wrapper?.unmount();
+      } finally {
+        window.matchMedia = originalMatchMedia;
+      }
     });
   });
 });

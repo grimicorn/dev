@@ -219,6 +219,13 @@ onMounted(() => {
 
   window.addEventListener("keydown", onKeyDown);
 
+  // Guard against environments without matchMedia (older embedded webviews)
+  // instead of letting onMounted throw: fail closed by simply not starting
+  // the cursor-linked parallax, rather than surfacing a mount error.
+  if (typeof window.matchMedia !== "function") {
+    return;
+  }
+
   reducedMotionQuery = window.matchMedia(REDUCED_MOTION_QUERY);
   reducedMotionQuery.addEventListener("change", handleReducedMotionChange);
   handleReducedMotionChange(reducedMotionQuery);
