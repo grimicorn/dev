@@ -46,6 +46,14 @@ const KONAMI = [
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
+// The scale here isn't part of the cursor-linked motion — it's a constant
+// slight overzoom so the translate/rotate wobble never reveals an edge past
+// the image's rounded, overflow-hidden container. It has to be preserved at
+// rest (reduced motion, or the pointer sitting dead center) too, or toggling
+// between the two visibly pops the image's size.
+const HERO_PARALLAX = { amount: 16, rotation: 1.0, scale: 1.06 };
+const PORTRAIT_PARALLAX = { amount: 11, rotation: 0.7, scale: 1.08 };
+
 const tagIndex = ref(0);
 const logs = ref<LogEntry[]>([]);
 const toastText = ref("");
@@ -106,22 +114,37 @@ function tick() {
     el.style.transform = `translate(${(mouse.tx * amt).toFixed(2)}px,${(mouse.ty * amt).toFixed(2)}px) rotate(${(mouse.tx * rot).toFixed(2)}deg) scale(${scale})`;
   };
 
-  applyParallax(imageHeroRef.value, 16, 1.0, 1.06);
-  applyParallax(imagePortraitRef.value, 11, 0.7, 1.08);
+  applyParallax(
+    imageHeroRef.value,
+    HERO_PARALLAX.amount,
+    HERO_PARALLAX.rotation,
+    HERO_PARALLAX.scale,
+  );
+  applyParallax(
+    imagePortraitRef.value,
+    PORTRAIT_PARALLAX.amount,
+    PORTRAIT_PARALLAX.rotation,
+    PORTRAIT_PARALLAX.scale,
+  );
 
   rafId = requestAnimationFrame(tick);
 }
 
-function resetParallaxTransform(imageElement: HTMLImageElement | null) {
+// Resets to the rest pose (the constant overzoom, with no translate/rotate)
+// rather than clearing the transform entirely — see the scale comment above.
+function resetParallaxTransform(
+  imageElement: HTMLImageElement | null,
+  scale: number,
+) {
   if (!imageElement) {
     return;
   }
-  imageElement.style.transform = "";
+  imageElement.style.transform = `scale(${scale})`;
 }
 
 function resetParallaxTransforms() {
-  resetParallaxTransform(imageHeroRef.value);
-  resetParallaxTransform(imagePortraitRef.value);
+  resetParallaxTransform(imageHeroRef.value, HERO_PARALLAX.scale);
+  resetParallaxTransform(imagePortraitRef.value, PORTRAIT_PARALLAX.scale);
 }
 
 // Starts the cursor-linked parallax loop. No-op if it's already running, and
@@ -163,7 +186,12 @@ function handleReducedMotionChange(
   query: MediaQueryList | MediaQueryListEvent,
 ) {
   if (query.matches) {
+    // stopParallax() only resets the rest pose if the loop had actually
+    // been running; call it unconditionally too so a visitor who already
+    // prefers reduced motion at mount (the common case) still gets the
+    // rest pose instead of no transform at all.
     stopParallax();
+    resetParallaxTransforms();
     return;
   }
   startParallax();
@@ -219,9 +247,12 @@ onMounted(() => {
 
   window.addEventListener("keydown", onKeyDown);
 
-  // Guard against environments without matchMedia (older embedded webviews)
-  // instead of letting onMounted throw: fail closed by simply not starting
-  // the cursor-linked parallax, rather than surfacing a mount error.
+  // Guard against non-browser/test environments where matchMedia doesn't
+  // exist at all (e.g. SSR) instead of letting onMounted throw: fail closed
+  // by simply not starting the cursor-linked parallax, rather than
+  // surfacing a mount error. Evergreen browsers all support matchMedia and
+  // MediaQueryList.addEventListener, so no further feature-detection is
+  // needed beyond this.
   if (typeof window.matchMedia !== "function") {
     return;
   }

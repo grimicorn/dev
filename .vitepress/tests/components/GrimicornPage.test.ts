@@ -194,6 +194,13 @@ function parseTranslateXPixels(transform: string) {
   return match ? Number(match[1]) : NaN;
 }
 
+// The constant overzoom scale (see HERO_PARALLAX/PORTRAIT_PARALLAX in the
+// component) that both images should rest at whenever no cursor-linked
+// translate/rotate is being applied — whether that's because reduced motion
+// is preferred, or because the pointer sits dead center.
+const HERO_REST_TRANSFORM = "scale(1.06)";
+const PORTRAIT_REST_TRANSFORM = "scale(1.08)";
+
 describe("GrimicornPage", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -413,13 +420,17 @@ describe("GrimicornPage", () => {
       dispatchMouseMove(900, 700);
       runNextFrame();
 
-      expect(getHeroTransform(wrapper)).toMatch(/translate/);
-      expect(getPortraitTransform(wrapper)).toMatch(/translate/);
+      expect(parseTranslateXPixels(getHeroTransform(wrapper))).toBeGreaterThan(
+        0,
+      );
+      expect(
+        parseTranslateXPixels(getPortraitTransform(wrapper)),
+      ).toBeGreaterThan(0);
 
       wrapper.unmount();
     });
 
-    it("never starts the requestAnimationFrame loop or listens for mousemove when reduced motion is preferred at mount", async () => {
+    it("never starts the requestAnimationFrame loop or listens for mousemove when reduced motion is preferred at mount, and rests at the constant overzoom scale", async () => {
       mockPrefersReducedMotion(true);
       const { requestAnimationFrameSpy } = mockAnimationFrame();
       const { findRegisteredListener } = mockWindowEventListeners();
@@ -428,6 +439,13 @@ describe("GrimicornPage", () => {
 
       expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
       expect(findRegisteredListener("mousemove")).toBeUndefined();
+
+      // Reduced motion at mount must land on the same rest pose as a
+      // runtime stop, not on no transform at all — otherwise a visitor who
+      // already prefers reduced motion (the common case) sees a different,
+      // un-cropped image size than one who toggles it on mid-session.
+      expect(getHeroTransform(wrapper)).toBe(HERO_REST_TRANSFORM);
+      expect(getPortraitTransform(wrapper)).toBe(PORTRAIT_REST_TRANSFORM);
 
       wrapper.unmount();
     });
@@ -445,7 +463,9 @@ describe("GrimicornPage", () => {
 
       dispatchMouseMove(900, 700);
       runNextFrame();
-      expect(getHeroTransform(wrapper)).toMatch(/translate/);
+      expect(parseTranslateXPixels(getHeroTransform(wrapper))).toBeGreaterThan(
+        0,
+      );
 
       setMatches(true);
       await wrapper.vm.$nextTick();
@@ -455,8 +475,11 @@ describe("GrimicornPage", () => {
         "mousemove",
         registeredMouseMoveListener,
       );
-      expect(getHeroTransform(wrapper)).toBe("");
-      expect(getPortraitTransform(wrapper)).toBe("");
+      // Stopping lands on the constant overzoom rest pose, not on no
+      // transform at all, so the image doesn't visibly change size the
+      // instant reduced motion is turned on.
+      expect(getHeroTransform(wrapper)).toBe(HERO_REST_TRANSFORM);
+      expect(getPortraitTransform(wrapper)).toBe(PORTRAIT_REST_TRANSFORM);
 
       wrapper.unmount();
     });
@@ -479,7 +502,7 @@ describe("GrimicornPage", () => {
 
       setMatches(true);
       await wrapper.vm.$nextTick();
-      expect(getHeroTransform(wrapper)).toBe("");
+      expect(getHeroTransform(wrapper)).toBe(HERO_REST_TRANSFORM);
 
       setMatches(false);
       await wrapper.vm.$nextTick();
@@ -507,8 +530,12 @@ describe("GrimicornPage", () => {
       dispatchMouseMove(900, 700);
       runNextFrame();
 
-      expect(getHeroTransform(wrapper)).toMatch(/translate/);
-      expect(getPortraitTransform(wrapper)).toMatch(/translate/);
+      expect(parseTranslateXPixels(getHeroTransform(wrapper))).toBeGreaterThan(
+        0,
+      );
+      expect(
+        parseTranslateXPixels(getPortraitTransform(wrapper)),
+      ).toBeGreaterThan(0);
 
       wrapper.unmount();
     });
