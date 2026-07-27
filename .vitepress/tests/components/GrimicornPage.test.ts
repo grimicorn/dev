@@ -175,6 +175,9 @@ describe("GrimicornPage", () => {
     const toast = findToast(wrapper);
     expect(toast?.classes()).toContain("opacity-100");
     expect(toast?.text()).toBe(RAVE_ON_TOAST_MESSAGE);
+    expect(wrapper.find(".colorful-btn").attributes("aria-pressed")).toBe(
+      "true",
+    );
 
     wrapper.unmount();
   });
@@ -278,9 +281,6 @@ describe("GrimicornPage", () => {
 
     const colorfulButton = wrapper.find(".colorful-btn");
     expect(colorfulButton.attributes("aria-pressed")).toBe("false");
-    expect(colorfulButton.attributes("aria-label")).toBe(
-      "colorful — toggles rave mode",
-    );
 
     await colorfulButton.trigger("click");
     expect(colorfulButton.attributes("aria-pressed")).toBe("true");
