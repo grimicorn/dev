@@ -44,6 +44,8 @@ const KONAMI = [
   "a",
 ];
 
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
 const tagIndex = ref(0);
 const logs = ref<LogEntry[]>([]);
 const toastText = ref("");
@@ -62,6 +64,8 @@ let logTimer = 0;
 let toastTimer = 0;
 let rafId = 0;
 let konamiPos = 0;
+let reducedMotionQuery: MediaQueryList | null = null;
+let parallaxActive = false;
 
 const currentTagline = computed(() => TAGLINES[tagIndex.value]);
 
@@ -106,6 +110,51 @@ function tick() {
   applyParallax(imagePortraitRef.value, 11, 0.7, 1.08);
 
   rafId = requestAnimationFrame(tick);
+}
+
+function resetParallaxTransform(imageElement: HTMLImageElement | null) {
+  if (!imageElement) {
+    return;
+  }
+  imageElement.style.transform = "";
+}
+
+function resetParallaxTransforms() {
+  resetParallaxTransform(imageHeroRef.value);
+  resetParallaxTransform(imagePortraitRef.value);
+}
+
+// Starts the cursor-linked parallax loop. No-op if it's already running, and
+// skipped entirely when the visitor prefers reduced motion so vestibular
+// triggers never begin in the first place (rather than starting then discarding).
+function startParallax() {
+  if (parallaxActive) {
+    return;
+  }
+  parallaxActive = true;
+  window.addEventListener("mousemove", onMouseMove);
+  rafId = requestAnimationFrame(tick);
+}
+
+// Stops the parallax loop and clears any transform it already applied, so a
+// visitor who enables reduced motion mid-session isn't left with the images
+// frozen mid-offset.
+function stopParallax() {
+  if (!parallaxActive) {
+    return;
+  }
+  parallaxActive = false;
+  window.removeEventListener("mousemove", onMouseMove);
+  cancelAnimationFrame(rafId);
+  resetParallaxTransforms();
+}
+
+function handleReducedMotionChange() {
+  if (reducedMotionQuery?.matches) {
+    stopParallax();
+    return;
+  }
+  startParallax();
 }
 
 function onKeyDown(e: KeyboardEvent) {
@@ -156,18 +205,25 @@ onMounted(() => {
     logs.value = [...logs.value, stamp(text)].slice(-8);
   }, 2000);
 
-  window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("keydown", onKeyDown);
-  rafId = requestAnimationFrame(tick);
+
+  reducedMotionQuery = window.matchMedia(REDUCED_MOTION_QUERY);
+  reducedMotionQuery.addEventListener("change", handleReducedMotionChange);
+
+  if (reducedMotionQuery.matches) {
+    return;
+  }
+
+  startParallax();
 });
 
 onUnmounted(() => {
   clearInterval(tagTimer);
   clearInterval(logTimer);
   clearTimeout(toastTimer);
-  window.removeEventListener("mousemove", onMouseMove);
   window.removeEventListener("keydown", onKeyDown);
-  cancelAnimationFrame(rafId);
+  reducedMotionQuery?.removeEventListener("change", handleReducedMotionChange);
+  stopParallax();
 });
 </script>
 

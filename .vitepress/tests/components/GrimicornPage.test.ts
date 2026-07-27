@@ -67,6 +67,99 @@ function findToast(wrapper: GrimicornWrapper) {
     );
 }
 
+const REDUCED_MOTION_MEDIA_QUERY = "(prefers-reduced-motion: reduce)";
+
+type ReducedMotionChangeListener = (_event: { matches: boolean }) => void;
+type AnimationFrameCallback = (_time: number) => void;
+
+// Drives the component's requestAnimationFrame loop by hand instead of
+// relying on vitest's fake-timer rAF shim: this repo's other tests combine
+// vi.useFakeTimers() with vi.setSystemTime() across multiple `it` blocks,
+// and that combination is known to stop the shimmed rAF from ever firing on
+// the second and later tests in a file. Replacing requestAnimationFrame /
+// cancelAnimationFrame with a manual queue sidesteps that entirely and lets
+// each test step the loop exactly one frame at a time.
+function mockAnimationFrame() {
+  let nextFrameId = 0;
+  const queuedCallbacks = new Map<number, AnimationFrameCallback>();
+
+  const requestAnimationFrameSpy = vi
+    .spyOn(window, "requestAnimationFrame")
+    .mockImplementation((callback) => {
+      nextFrameId += 1;
+      queuedCallbacks.set(nextFrameId, callback);
+      return nextFrameId;
+    });
+
+  const cancelAnimationFrameSpy = vi
+    .spyOn(window, "cancelAnimationFrame")
+    .mockImplementation((frameId) => {
+      queuedCallbacks.delete(frameId);
+    });
+
+  function runNextFrame() {
+    const [frameId] = queuedCallbacks.keys();
+    if (frameId === undefined) {
+      return;
+    }
+    const callback = queuedCallbacks.get(frameId);
+    queuedCallbacks.delete(frameId);
+    callback?.(0);
+  }
+
+  return { runNextFrame, requestAnimationFrameSpy, cancelAnimationFrameSpy };
+}
+
+// A minimal MediaQueryList stand-in so tests can drive
+// `prefers-reduced-motion` deterministically: set its initial value, then
+// flip it at runtime via setMatches() to simulate the visitor toggling the
+// OS setting while the page is open.
+function mockPrefersReducedMotion(initialMatches: boolean) {
+  const changeListeners = new Set<ReducedMotionChangeListener>();
+  const mediaQueryList = {
+    matches: initialMatches,
+    media: REDUCED_MOTION_MEDIA_QUERY,
+    addEventListener: vi.fn(
+      (eventName: string, listener: ReducedMotionChangeListener) => {
+        if (eventName === "change") {
+          changeListeners.add(listener);
+        }
+      },
+    ),
+    removeEventListener: vi.fn(
+      (eventName: string, listener: ReducedMotionChangeListener) => {
+        if (eventName === "change") {
+          changeListeners.delete(listener);
+        }
+      },
+    ),
+  };
+
+  vi.spyOn(window, "matchMedia").mockReturnValue(
+    mediaQueryList as unknown as MediaQueryList,
+  );
+
+  function setMatches(matches: boolean) {
+    mediaQueryList.matches = matches;
+    changeListeners.forEach((listener) => listener({ matches }));
+  }
+
+  return { mediaQueryList, setMatches };
+}
+
+function dispatchMouseMove(clientX: number, clientY: number) {
+  window.dispatchEvent(new MouseEvent("mousemove", { clientX, clientY }));
+}
+
+function getHeroTransform(wrapper: GrimicornWrapper) {
+  return wrapper.find('img[alt="Grimicorn — skeletal rainbow unicorn"]').element
+    .style.transform;
+}
+
+function getPortraitTransform(wrapper: GrimicornWrapper) {
+  return wrapper.find('img[alt="Grimicorn portrait"]').element.style.transform;
+}
+
 describe("GrimicornPage", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -270,5 +363,101 @@ describe("GrimicornPage", () => {
     expect(findToast(wrapper)?.text()).toBe(RAVE_OFF_TOAST_MESSAGE);
 
     wrapper.unmount();
+  });
+
+  describe("cursor-linked parallax and prefers-reduced-motion", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("applies a cursor-linked transform to the hero and portrait images when reduced motion is not preferred", async () => {
+      mockPrefersReducedMotion(false);
+      const { runNextFrame } = mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      dispatchMouseMove(900, 700);
+      runNextFrame();
+
+      expect(getHeroTransform(wrapper)).toMatch(/translate/);
+      expect(getPortraitTransform(wrapper)).toMatch(/translate/);
+
+      wrapper.unmount();
+    });
+
+    it("never starts the requestAnimationFrame loop or listens for mousemove when reduced motion is preferred at mount", async () => {
+      mockPrefersReducedMotion(true);
+      const { runNextFrame, requestAnimationFrameSpy } = mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+
+      dispatchMouseMove(900, 700);
+      runNextFrame();
+
+      expect(getHeroTransform(wrapper)).toBe("");
+      expect(getPortraitTransform(wrapper)).toBe("");
+
+      wrapper.unmount();
+    });
+
+    it("stops the loop and clears any applied transform when the preference switches to reduced motion at runtime", async () => {
+      const { setMatches } = mockPrefersReducedMotion(false);
+      const { runNextFrame, cancelAnimationFrameSpy } = mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      dispatchMouseMove(900, 700);
+      runNextFrame();
+      expect(getHeroTransform(wrapper)).toMatch(/translate/);
+
+      setMatches(true);
+      await wrapper.vm.$nextTick();
+
+      expect(cancelAnimationFrameSpy).toHaveBeenCalled();
+      expect(getHeroTransform(wrapper)).toBe("");
+      expect(getPortraitTransform(wrapper)).toBe("");
+
+      // Further cursor movement must not resurrect the transform: the
+      // mousemove listener should already be gone and no frame scheduled.
+      dispatchMouseMove(50, 50);
+      runNextFrame();
+      expect(getHeroTransform(wrapper)).toBe("");
+      expect(getPortraitTransform(wrapper)).toBe("");
+
+      wrapper.unmount();
+    });
+
+    it("resumes the parallax loop when the preference switches away from reduced motion at runtime", async () => {
+      const { setMatches } = mockPrefersReducedMotion(true);
+      const { runNextFrame } = mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      setMatches(false);
+      await wrapper.vm.$nextTick();
+
+      dispatchMouseMove(900, 700);
+      runNextFrame();
+
+      expect(getHeroTransform(wrapper)).toMatch(/translate/);
+      expect(getPortraitTransform(wrapper)).toMatch(/translate/);
+
+      wrapper.unmount();
+    });
+
+    it("removes the prefers-reduced-motion change listener on unmount", async () => {
+      const { mediaQueryList } = mockPrefersReducedMotion(false);
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      wrapper.unmount();
+
+      expect(mediaQueryList.removeEventListener).toHaveBeenCalledWith(
+        "change",
+        expect.any(Function),
+      );
+    });
   });
 });

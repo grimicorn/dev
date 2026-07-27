@@ -99,7 +99,11 @@ body {
 
 /* Accessibility guard: freeze the always-on hero/terminal/404 animations at
    a static, non-distracting state for visitors who have asked their OS for
-   reduced motion, instead of leaving them looping indefinitely. */
+   reduced motion, instead of leaving them looping indefinitely. The
+   cursor-linked parallax on the hero/portrait images can't be neutralized by
+   CSS alone (it's applied as an inline transform by JS on every animation
+   frame) — GrimicornPage.vue mirrors this same guard with its own
+   `prefers-reduced-motion` matchMedia check. */
 @media (prefers-reduced-motion: reduce) {
   .animate-rainbow-pan,
   .animate-glow-pulse,
