@@ -138,7 +138,9 @@ function startParallax() {
 
 // Stops the parallax loop and clears any transform it already applied, so a
 // visitor who enables reduced motion mid-session isn't left with the images
-// frozen mid-offset.
+// frozen mid-offset. Also resets the eased cursor offsets so that if the
+// visitor later turns reduced motion back off, the loop eases in from rest
+// instead of snapping straight to wherever the cursor last was.
 function stopParallax() {
   if (!parallaxActive) {
     return;
@@ -147,10 +149,20 @@ function stopParallax() {
   window.removeEventListener("mousemove", onMouseMove);
   cancelAnimationFrame(rafId);
   resetParallaxTransforms();
+  mouse.x = 0;
+  mouse.y = 0;
+  mouse.tx = 0;
+  mouse.ty = 0;
 }
 
-function handleReducedMotionChange() {
-  if (reducedMotionQuery?.matches) {
+// Takes the MediaQueryList (initial check) or MediaQueryListEvent (change
+// event) directly rather than re-reading the outer reducedMotionQuery
+// variable, so the accessibility guard can't fail open if that binding is
+// ever missing by the time this runs.
+function handleReducedMotionChange(
+  query: MediaQueryList | MediaQueryListEvent,
+) {
+  if (query.matches) {
     stopParallax();
     return;
   }
@@ -209,12 +221,7 @@ onMounted(() => {
 
   reducedMotionQuery = window.matchMedia(REDUCED_MOTION_QUERY);
   reducedMotionQuery.addEventListener("change", handleReducedMotionChange);
-
-  if (reducedMotionQuery.matches) {
-    return;
-  }
-
-  startParallax();
+  handleReducedMotionChange(reducedMotionQuery);
 });
 
 onUnmounted(() => {

@@ -135,9 +135,13 @@ function mockPrefersReducedMotion(initialMatches: boolean) {
     ),
   };
 
-  vi.spyOn(window, "matchMedia").mockReturnValue(
-    mediaQueryList as unknown as MediaQueryList,
-  );
+  // Asserts on the query string too, not just a blanket mockReturnValue:
+  // otherwise a typo'd or inverted query in the component (e.g.
+  // "no-preference" instead of "reduce") would still pass every test here.
+  vi.spyOn(window, "matchMedia").mockImplementation((query: string) => {
+    expect(query).toBe(REDUCED_MOTION_MEDIA_QUERY);
+    return mediaQueryList as unknown as MediaQueryList;
+  });
 
   function setMatches(matches: boolean) {
     mediaQueryList.matches = matches;
@@ -158,6 +162,11 @@ function getHeroTransform(wrapper: GrimicornWrapper) {
 
 function getPortraitTransform(wrapper: GrimicornWrapper) {
   return wrapper.find('img[alt="Grimicorn portrait"]').element.style.transform;
+}
+
+function parseTranslateXPixels(transform: string) {
+  const match = transform.match(/translate\(([-\d.]+)px/);
+  return match ? Number(match[1]) : NaN;
 }
 
 describe("GrimicornPage", () => {
@@ -429,6 +438,40 @@ describe("GrimicornPage", () => {
       wrapper.unmount();
     });
 
+    it("resets the eased cursor offset on stop, so resuming eases in from rest instead of snapping back to the pre-stop position", async () => {
+      const { setMatches } = mockPrefersReducedMotion(false);
+      const { runNextFrame } = mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      // Move to a far corner and let several frames build up real eased
+      // momentum, so there is something to (incorrectly) snap back to.
+      dispatchMouseMove(1024, 768);
+      for (let frame = 0; frame < 20; frame += 1) {
+        runNextFrame();
+      }
+      expect(parseTranslateXPixels(getHeroTransform(wrapper))).toBeGreaterThan(
+        1,
+      );
+
+      setMatches(true);
+      await wrapper.vm.$nextTick();
+      expect(getHeroTransform(wrapper)).toBe("");
+
+      setMatches(false);
+      await wrapper.vm.$nextTick();
+      runNextFrame();
+
+      // If the eased offset weren't reset alongside the transform, this
+      // first frame after resuming would immediately reproduce the pre-stop
+      // offset in one jump instead of easing in from zero.
+      expect(getHeroTransform(wrapper)).toBe(
+        "translate(0.00px,0.00px) rotate(0.00deg) scale(1.06)",
+      );
+
+      wrapper.unmount();
+    });
+
     it("resumes the parallax loop when the preference switches away from reduced motion at runtime", async () => {
       const { setMatches } = mockPrefersReducedMotion(true);
       const { runNextFrame } = mockAnimationFrame();
@@ -447,17 +490,39 @@ describe("GrimicornPage", () => {
       wrapper.unmount();
     });
 
-    it("removes the prefers-reduced-motion change listener on unmount", async () => {
+    it("removes the exact prefers-reduced-motion change listener that was registered, on unmount", async () => {
       const { mediaQueryList } = mockPrefersReducedMotion(false);
       const wrapper = shallowMount(GrimicornPage);
       await wrapper.vm.$nextTick();
 
+      const [, registeredListener] =
+        mediaQueryList.addEventListener.mock.calls[0];
+
       wrapper.unmount();
 
+      // Asserting identity (not expect.any(Function)) catches a common leak
+      // pattern: registering an inline wrapper closure and removing a
+      // different function reference, which would otherwise pass this check
+      // while still leaking the original listener.
       expect(mediaQueryList.removeEventListener).toHaveBeenCalledWith(
         "change",
-        expect.any(Function),
+        registeredListener,
       );
+    });
+
+    it("removes the mousemove listener and stops scheduling frames on unmount", async () => {
+      mockPrefersReducedMotion(false);
+      const { runNextFrame, requestAnimationFrameSpy } = mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      wrapper.unmount();
+      requestAnimationFrameSpy.mockClear();
+
+      dispatchMouseMove(900, 700);
+      runNextFrame();
+
+      expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
     });
   });
 });
