@@ -175,6 +175,9 @@ describe("GrimicornPage", () => {
     const toast = findToast(wrapper);
     expect(toast?.classes()).toContain("opacity-100");
     expect(toast?.text()).toBe(RAVE_ON_TOAST_MESSAGE);
+    expect(wrapper.find(".colorful-btn").attributes("aria-pressed")).toBe(
+      "true",
+    );
 
     wrapper.unmount();
   });
@@ -268,6 +271,22 @@ describe("GrimicornPage", () => {
     expect(getRainbowDuration(wrapper)).toBe(DEFAULT_RAINBOW_DURATION);
     expect(getGlowDuration(wrapper)).toBe(DEFAULT_GLOW_DURATION);
     expect(findToast(wrapper)?.text()).toBe(RAVE_OFF_TOAST_MESSAGE);
+
+    wrapper.unmount();
+  });
+
+  it("exposes aria-pressed on the colorful button reflecting rave mode state", async () => {
+    const wrapper = shallowMount(GrimicornPage);
+    await wrapper.vm.$nextTick();
+
+    const colorfulButton = wrapper.find(".colorful-btn");
+    expect(colorfulButton.attributes("aria-pressed")).toBe("false");
+
+    await colorfulButton.trigger("click");
+    expect(colorfulButton.attributes("aria-pressed")).toBe("true");
+
+    await colorfulButton.trigger("click");
+    expect(colorfulButton.attributes("aria-pressed")).toBe("false");
 
     wrapper.unmount();
   });

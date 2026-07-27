@@ -602,7 +602,11 @@ onUnmounted(() => {
         <span>grimicorn.dev &mdash; &copy; {{ new Date().getFullYear() }}</span>
         <span
           >built dark &middot; shipped
-          <button class="colorful-btn" @click="toggleRave">
+          <button
+            class="colorful-btn"
+            :aria-pressed="raveActive"
+            @click="toggleRave"
+          >
             colorful
           </button></span
         >
