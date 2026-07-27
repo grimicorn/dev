@@ -605,7 +605,7 @@ onUnmounted(() => {
           <button
             class="colorful-btn"
             :aria-pressed="raveActive"
-            aria-label="Toggle colorful rave mode"
+            aria-label="colorful — toggles rave mode"
             @click="toggleRave"
           >
             colorful

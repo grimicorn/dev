@@ -278,6 +278,9 @@ describe("GrimicornPage", () => {
 
     const colorfulButton = wrapper.find(".colorful-btn");
     expect(colorfulButton.attributes("aria-pressed")).toBe("false");
+    expect(colorfulButton.attributes("aria-label")).toBe(
+      "colorful — toggles rave mode",
+    );
 
     await colorfulButton.trigger("click");
     expect(colorfulButton.attributes("aria-pressed")).toBe("true");
