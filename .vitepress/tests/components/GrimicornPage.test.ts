@@ -67,6 +67,140 @@ function findToast(wrapper: GrimicornWrapper) {
     );
 }
 
+const REDUCED_MOTION_MEDIA_QUERY = "(prefers-reduced-motion: reduce)";
+
+type ReducedMotionChangeListener = (_event: { matches: boolean }) => void;
+type AnimationFrameCallback = (_time: number) => void;
+
+// Drives the component's requestAnimationFrame loop by hand instead of
+// relying on vitest's fake-timer rAF shim: this repo's other tests combine
+// vi.useFakeTimers() with vi.setSystemTime() across multiple `it` blocks,
+// and that combination is known to stop the shimmed rAF from ever firing on
+// the second and later tests in a file. Replacing requestAnimationFrame /
+// cancelAnimationFrame with a manual queue sidesteps that entirely and lets
+// each test step the loop exactly one frame at a time.
+function mockAnimationFrame() {
+  let nextFrameId = 0;
+  const queuedCallbacks = new Map<number, AnimationFrameCallback>();
+
+  const requestAnimationFrameSpy = vi
+    .spyOn(window, "requestAnimationFrame")
+    .mockImplementation((callback) => {
+      nextFrameId += 1;
+      queuedCallbacks.set(nextFrameId, callback);
+      return nextFrameId;
+    });
+
+  const cancelAnimationFrameSpy = vi
+    .spyOn(window, "cancelAnimationFrame")
+    .mockImplementation((frameId) => {
+      queuedCallbacks.delete(frameId);
+    });
+
+  function runNextFrame() {
+    const [frameId] = queuedCallbacks.keys();
+    if (frameId === undefined) {
+      return;
+    }
+    const callback = queuedCallbacks.get(frameId);
+    queuedCallbacks.delete(frameId);
+    callback?.(0);
+  }
+
+  return { runNextFrame, requestAnimationFrameSpy, cancelAnimationFrameSpy };
+}
+
+// Spies on window.addEventListener/removeEventListener without replacing
+// their implementation, so real listener registration (and dispatchMouseMove
+// delivery) keeps working while tests assert on it by identity. Asserting
+// via observed transforms or the rAF spy alone isn't enough: those signals
+// are driven by the rAF loop, not the mousemove listener itself, so a bug
+// that wires mousemove up in the wrong place could still leave those
+// assertions green.
+function mockWindowEventListeners() {
+  const addEventListenerSpy = vi.spyOn(window, "addEventListener");
+  const removeEventListenerSpy = vi.spyOn(window, "removeEventListener");
+
+  function findRegisteredListener(eventName: string) {
+    const matchingCall = addEventListenerSpy.mock.calls.find(
+      ([registeredEventName]) => registeredEventName === eventName,
+    );
+    return matchingCall?.[1];
+  }
+
+  return {
+    findRegisteredListener,
+    addEventListenerSpy,
+    removeEventListenerSpy,
+  };
+}
+
+// A minimal MediaQueryList stand-in so tests can drive
+// `prefers-reduced-motion` deterministically: set its initial value, then
+// flip it at runtime via setMatches() to simulate the visitor toggling the
+// OS setting while the page is open.
+function mockPrefersReducedMotion(initialMatches: boolean) {
+  const changeListeners = new Set<ReducedMotionChangeListener>();
+  const mediaQueryList = {
+    matches: initialMatches,
+    media: REDUCED_MOTION_MEDIA_QUERY,
+    addEventListener: vi.fn(
+      (eventName: string, listener: ReducedMotionChangeListener) => {
+        if (eventName === "change") {
+          changeListeners.add(listener);
+        }
+      },
+    ),
+    removeEventListener: vi.fn(
+      (eventName: string, listener: ReducedMotionChangeListener) => {
+        if (eventName === "change") {
+          changeListeners.delete(listener);
+        }
+      },
+    ),
+  };
+
+  // Asserts on the query string too, not just a blanket mockReturnValue:
+  // otherwise a typo'd or inverted query in the component (e.g.
+  // "no-preference" instead of "reduce") would still pass every test here.
+  vi.spyOn(window, "matchMedia").mockImplementation((query: string) => {
+    expect(query).toBe(REDUCED_MOTION_MEDIA_QUERY);
+    return mediaQueryList as unknown as MediaQueryList;
+  });
+
+  function setMatches(matches: boolean) {
+    mediaQueryList.matches = matches;
+    changeListeners.forEach((listener) => listener({ matches }));
+  }
+
+  return { mediaQueryList, setMatches };
+}
+
+function dispatchMouseMove(clientX: number, clientY: number) {
+  window.dispatchEvent(new MouseEvent("mousemove", { clientX, clientY }));
+}
+
+function getHeroTransform(wrapper: GrimicornWrapper) {
+  return wrapper.find('img[alt="Grimicorn — skeletal rainbow unicorn"]').element
+    .style.transform;
+}
+
+function getPortraitTransform(wrapper: GrimicornWrapper) {
+  return wrapper.find('img[alt="Grimicorn portrait"]').element.style.transform;
+}
+
+function parseTranslateXPixels(transform: string) {
+  const match = transform.match(/translate\(([-\d.]+)px/);
+  return match ? Number(match[1]) : NaN;
+}
+
+// The constant overzoom scale (see HERO_PARALLAX/PORTRAIT_PARALLAX in the
+// component) that both images should rest at whenever no cursor-linked
+// translate/rotate is being applied — whether that's because reduced motion
+// is preferred, or because the pointer sits dead center.
+const HERO_REST_TRANSFORM = "scale(1.06)";
+const PORTRAIT_REST_TRANSFORM = "scale(1.08)";
+
 describe("GrimicornPage", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -289,5 +423,285 @@ describe("GrimicornPage", () => {
     expect(colorfulButton.attributes("aria-pressed")).toBe("false");
 
     wrapper.unmount();
+  });
+
+  describe("cursor-linked parallax and prefers-reduced-motion", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("applies a cursor-linked transform to the hero and portrait images when reduced motion is not preferred", async () => {
+      mockPrefersReducedMotion(false);
+      const { runNextFrame } = mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      dispatchMouseMove(900, 700);
+      runNextFrame();
+
+      expect(parseTranslateXPixels(getHeroTransform(wrapper))).toBeGreaterThan(
+        0,
+      );
+      expect(
+        parseTranslateXPixels(getPortraitTransform(wrapper)),
+      ).toBeGreaterThan(0);
+
+      wrapper.unmount();
+    });
+
+    it("never starts the requestAnimationFrame loop or listens for mousemove when reduced motion is preferred at mount, and rests at the constant overzoom scale", async () => {
+      mockPrefersReducedMotion(true);
+      const { requestAnimationFrameSpy } = mockAnimationFrame();
+      const { findRegisteredListener } = mockWindowEventListeners();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+      expect(findRegisteredListener("mousemove")).toBeUndefined();
+
+      // Reduced motion at mount must land on the same rest pose as a
+      // runtime stop, not on no transform at all — otherwise a visitor who
+      // already prefers reduced motion (the common case) sees a different,
+      // un-cropped image size than one who toggles it on mid-session.
+      expect(getHeroTransform(wrapper)).toBe(HERO_REST_TRANSFORM);
+      expect(getPortraitTransform(wrapper)).toBe(PORTRAIT_REST_TRANSFORM);
+
+      wrapper.unmount();
+    });
+
+    it("stops the loop and clears any applied transform when the preference switches to reduced motion at runtime", async () => {
+      const { setMatches } = mockPrefersReducedMotion(false);
+      const {
+        runNextFrame,
+        requestAnimationFrameSpy,
+        cancelAnimationFrameSpy,
+      } = mockAnimationFrame();
+      const { findRegisteredListener, removeEventListenerSpy } =
+        mockWindowEventListeners();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      const registeredMouseMoveListener = findRegisteredListener("mousemove");
+      expect(registeredMouseMoveListener).toBeDefined();
+
+      dispatchMouseMove(900, 700);
+      runNextFrame();
+      expect(parseTranslateXPixels(getHeroTransform(wrapper))).toBeGreaterThan(
+        0,
+      );
+
+      setMatches(true);
+      await wrapper.vm.$nextTick();
+
+      expect(cancelAnimationFrameSpy).toHaveBeenCalled();
+      expect(removeEventListenerSpy).toHaveBeenCalledWith(
+        "mousemove",
+        registeredMouseMoveListener,
+      );
+      // Stopping lands on the constant overzoom rest pose, not on no
+      // transform at all, so the image doesn't visibly change size the
+      // instant reduced motion is turned on.
+      expect(getHeroTransform(wrapper)).toBe(HERO_REST_TRANSFORM);
+      expect(getPortraitTransform(wrapper)).toBe(PORTRAIT_REST_TRANSFORM);
+
+      // Confirms cancelAnimationFrame actually cancelled the frame that was
+      // pending, not a stale/wrong id: if it hadn't, the queued tick()
+      // callback would still be sitting in the queue, re-schedule itself,
+      // and clobber the rest pose the instant it's run.
+      const framesRequestedAfterStop =
+        requestAnimationFrameSpy.mock.calls.length;
+      runNextFrame();
+      expect(requestAnimationFrameSpy.mock.calls.length).toBe(
+        framesRequestedAfterStop,
+      );
+      expect(getHeroTransform(wrapper)).toBe(HERO_REST_TRANSFORM);
+
+      wrapper.unmount();
+    });
+
+    it("resets the eased cursor offset on stop, so resuming eases in from rest instead of snapping back to the pre-stop position", async () => {
+      const { setMatches } = mockPrefersReducedMotion(false);
+      const { runNextFrame } = mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      // Move to a far corner and let several frames build up real eased
+      // momentum, so there is something to (incorrectly) snap back to.
+      dispatchMouseMove(1024, 768);
+      for (let frame = 0; frame < 20; frame += 1) {
+        runNextFrame();
+      }
+      expect(parseTranslateXPixels(getHeroTransform(wrapper))).toBeGreaterThan(
+        1,
+      );
+
+      setMatches(true);
+      await wrapper.vm.$nextTick();
+      expect(getHeroTransform(wrapper)).toBe(HERO_REST_TRANSFORM);
+
+      setMatches(false);
+      await wrapper.vm.$nextTick();
+      runNextFrame();
+
+      // If the eased offset weren't reset alongside the transform, this
+      // first frame after resuming would immediately reproduce the pre-stop
+      // offset in one jump instead of easing in from zero.
+      expect(getHeroTransform(wrapper)).toBe(
+        "translate(0.00px,0.00px) rotate(0.00deg) scale(1.06)",
+      );
+
+      wrapper.unmount();
+    });
+
+    it("resumes the parallax loop when the preference switches away from reduced motion at runtime", async () => {
+      const { setMatches } = mockPrefersReducedMotion(true);
+      const { runNextFrame } = mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      setMatches(false);
+      await wrapper.vm.$nextTick();
+
+      dispatchMouseMove(900, 700);
+      runNextFrame();
+
+      expect(parseTranslateXPixels(getHeroTransform(wrapper))).toBeGreaterThan(
+        0,
+      );
+      expect(
+        parseTranslateXPixels(getPortraitTransform(wrapper)),
+      ).toBeGreaterThan(0);
+
+      wrapper.unmount();
+    });
+
+    it("never stacks a duplicate mousemove listener when a redundant change event fires while already running", async () => {
+      const { setMatches } = mockPrefersReducedMotion(true);
+      mockAnimationFrame();
+      const { addEventListenerSpy } = mockWindowEventListeners();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      setMatches(false);
+      await wrapper.vm.$nextTick();
+      // Fires "not reduced" again without an intervening "reduced" event —
+      // this is the only case where startParallax()'s
+      // `if (parallaxActive) return;` guard is the sole thing preventing a
+      // second listener (and a second concurrent rAF loop) from stacking up.
+      setMatches(false);
+      await wrapper.vm.$nextTick();
+
+      const mouseMoveRegistrationsWhileRunning =
+        addEventListenerSpy.mock.calls.filter(
+          ([eventName]) => eventName === "mousemove",
+        );
+      expect(mouseMoveRegistrationsWhileRunning).toHaveLength(1);
+
+      // A genuine stop/resume cycle after that should still add exactly one
+      // more registration, confirming the guard isn't just permanently
+      // latched shut.
+      setMatches(true);
+      await wrapper.vm.$nextTick();
+      setMatches(false);
+      await wrapper.vm.$nextTick();
+
+      const mouseMoveRegistrationsAfterCycle =
+        addEventListenerSpy.mock.calls.filter(
+          ([eventName]) => eventName === "mousemove",
+        );
+      expect(mouseMoveRegistrationsAfterCycle).toHaveLength(2);
+
+      wrapper.unmount();
+    });
+
+    it("removes the exact prefers-reduced-motion change listener that was registered, on unmount", async () => {
+      const { mediaQueryList } = mockPrefersReducedMotion(false);
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      const [, registeredListener] =
+        mediaQueryList.addEventListener.mock.calls[0];
+
+      wrapper.unmount();
+
+      // Asserting identity (not expect.any(Function)) catches a common leak
+      // pattern: registering an inline wrapper closure and removing a
+      // different function reference, which would otherwise pass this check
+      // while still leaking the original listener.
+      expect(mediaQueryList.removeEventListener).toHaveBeenCalledWith(
+        "change",
+        registeredListener,
+      );
+    });
+
+    it("removes the mousemove listener and stops scheduling frames on unmount", async () => {
+      mockPrefersReducedMotion(false);
+      const {
+        runNextFrame,
+        requestAnimationFrameSpy,
+        cancelAnimationFrameSpy,
+      } = mockAnimationFrame();
+      const { findRegisteredListener, removeEventListenerSpy } =
+        mockWindowEventListeners();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      const registeredMouseMoveListener = findRegisteredListener("mousemove");
+      expect(registeredMouseMoveListener).toBeDefined();
+
+      const framesRequestedBeforeUnmount =
+        requestAnimationFrameSpy.mock.calls.length;
+
+      wrapper.unmount();
+
+      expect(removeEventListenerSpy).toHaveBeenCalledWith(
+        "mousemove",
+        registeredMouseMoveListener,
+      );
+      expect(cancelAnimationFrameSpy).toHaveBeenCalled();
+
+      // The loop calls requestAnimationFrame again from inside its own
+      // callback, so cancelling the pending frame is the only thing that
+      // stops it: running whatever frame was still queued at unmount must
+      // not re-schedule another one.
+      runNextFrame();
+      expect(requestAnimationFrameSpy.mock.calls.length).toBe(
+        framesRequestedBeforeUnmount,
+      );
+    });
+
+    it("mounts without throwing and does not start the parallax loop when window.matchMedia is unavailable", async () => {
+      const originalMatchMedia = window.matchMedia;
+      Reflect.deleteProperty(window, "matchMedia");
+      const { requestAnimationFrameSpy } = mockAnimationFrame();
+      const { findRegisteredListener } = mockWindowEventListeners();
+
+      try {
+        let wrapper: GrimicornWrapper | undefined;
+        expect(() => {
+          wrapper = shallowMount(GrimicornPage);
+        }).not.toThrow();
+        await wrapper?.vm.$nextTick();
+
+        expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+        expect(findRegisteredListener("mousemove")).toBeUndefined();
+
+        // Same rest pose as every other "no cursor-linked motion" path, so
+        // an environment without matchMedia doesn't render a permanently
+        // different image crop than every other visitor. wrapper is always
+        // defined here: shallowMount() throwing would have already failed
+        // the expect(...).not.toThrow() assertion above.
+        expect(getHeroTransform(wrapper as GrimicornWrapper)).toBe(
+          HERO_REST_TRANSFORM,
+        );
+        expect(getPortraitTransform(wrapper as GrimicornWrapper)).toBe(
+          PORTRAIT_REST_TRANSFORM,
+        );
+
+        wrapper?.unmount();
+      } finally {
+        window.matchMedia = originalMatchMedia;
+      }
+    });
   });
 });

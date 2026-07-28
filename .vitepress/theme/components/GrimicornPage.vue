@@ -44,6 +44,30 @@ const KONAMI = [
   "a",
 ];
 
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+// The scale here isn't part of the cursor-linked motion — it's a constant
+// slight overzoom so the translate/rotate wobble never reveals an edge past
+// the image's rounded, overflow-hidden container. It has to be preserved at
+// rest (reduced motion, or the pointer sitting dead center) too, or toggling
+// between the two visibly pops the image's size.
+interface ParallaxConfig {
+  amount: number;
+  rotation: number;
+  scale: number;
+}
+
+const HERO_PARALLAX: ParallaxConfig = {
+  amount: 16,
+  rotation: 1.0,
+  scale: 1.06,
+};
+const PORTRAIT_PARALLAX: ParallaxConfig = {
+  amount: 11,
+  rotation: 0.7,
+  scale: 1.08,
+};
+
 const tagIndex = ref(0);
 const logs = ref<LogEntry[]>([]);
 const toastText = ref("");
@@ -62,6 +86,8 @@ let logTimer = 0;
 let toastTimer = 0;
 let rafId = 0;
 let konamiPos = 0;
+let reducedMotionQuery: MediaQueryList | null = null;
+let parallaxActive = false;
 
 const currentTagline = computed(() => TAGLINES[tagIndex.value]);
 
@@ -86,26 +112,94 @@ function onMouseMove(e: MouseEvent) {
   mouse.y = e.clientY / window.innerHeight - 0.5;
 }
 
+// Applies the cursor-linked translate/rotate on top of the constant overzoom
+// scale — see the scale comment above.
+function applyParallax(
+  imageElement: HTMLImageElement | null,
+  parallax: ParallaxConfig,
+) {
+  if (!imageElement) {
+    return;
+  }
+  const translateX = (mouse.tx * parallax.amount).toFixed(2);
+  const translateY = (mouse.ty * parallax.amount).toFixed(2);
+  const rotate = (mouse.tx * parallax.rotation).toFixed(2);
+  imageElement.style.transform = `translate(${translateX}px,${translateY}px) rotate(${rotate}deg) scale(${parallax.scale})`;
+}
+
 function tick() {
   mouse.tx += (mouse.x - mouse.tx) * 0.07;
   mouse.ty += (mouse.y - mouse.ty) * 0.07;
 
-  const applyParallax = (
-    el: HTMLImageElement | null,
-    amt: number,
-    rot: number,
-    scale: number,
-  ) => {
-    if (!el) {
-      return;
-    }
-    el.style.transform = `translate(${(mouse.tx * amt).toFixed(2)}px,${(mouse.ty * amt).toFixed(2)}px) rotate(${(mouse.tx * rot).toFixed(2)}deg) scale(${scale})`;
-  };
-
-  applyParallax(imageHeroRef.value, 16, 1.0, 1.06);
-  applyParallax(imagePortraitRef.value, 11, 0.7, 1.08);
+  applyParallax(imageHeroRef.value, HERO_PARALLAX);
+  applyParallax(imagePortraitRef.value, PORTRAIT_PARALLAX);
 
   rafId = requestAnimationFrame(tick);
+}
+
+// Resets to the rest pose (the constant overzoom, with no translate/rotate)
+// rather than clearing the transform entirely — see the scale comment above.
+function resetParallaxTransform(
+  imageElement: HTMLImageElement | null,
+  parallax: ParallaxConfig,
+) {
+  if (!imageElement) {
+    return;
+  }
+  imageElement.style.transform = `scale(${parallax.scale})`;
+}
+
+function resetParallaxTransforms() {
+  resetParallaxTransform(imageHeroRef.value, HERO_PARALLAX);
+  resetParallaxTransform(imagePortraitRef.value, PORTRAIT_PARALLAX);
+}
+
+// Starts the cursor-linked parallax loop. No-op if it's already running, and
+// skipped entirely when the visitor prefers reduced motion so vestibular
+// triggers never begin in the first place (rather than starting then discarding).
+function startParallax() {
+  if (parallaxActive) {
+    return;
+  }
+  parallaxActive = true;
+  window.addEventListener("mousemove", onMouseMove);
+  rafId = requestAnimationFrame(tick);
+}
+
+// Stops the parallax loop (if running) and always lands the images on the
+// constant overzoom rest pose, so every "no cursor-linked motion" caller —
+// reduced motion at mount, reduced motion mid-session, or matchMedia being
+// unavailable entirely — produces the same visible result instead of some
+// paths leaving no transform at all. Also resets the eased cursor offsets so
+// that if the visitor later turns reduced motion back off, the loop eases in
+// from rest instead of snapping straight to wherever the cursor last was.
+function stopParallax() {
+  resetParallaxTransforms();
+  if (!parallaxActive) {
+    return;
+  }
+  parallaxActive = false;
+  window.removeEventListener("mousemove", onMouseMove);
+  cancelAnimationFrame(rafId);
+  rafId = 0;
+  mouse.x = 0;
+  mouse.y = 0;
+  mouse.tx = 0;
+  mouse.ty = 0;
+}
+
+// Takes the MediaQueryList (initial check) or MediaQueryListEvent (change
+// event) directly rather than re-reading the outer reducedMotionQuery
+// variable, so the accessibility guard can't fail open if that binding is
+// ever missing by the time this runs.
+function handleReducedMotionChange(
+  query: MediaQueryList | MediaQueryListEvent,
+) {
+  if (query.matches) {
+    stopParallax();
+    return;
+  }
+  startParallax();
 }
 
 function onKeyDown(e: KeyboardEvent) {
@@ -156,18 +250,35 @@ onMounted(() => {
     logs.value = [...logs.value, stamp(text)].slice(-8);
   }, 2000);
 
-  window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("keydown", onKeyDown);
-  rafId = requestAnimationFrame(tick);
+
+  // Guard against non-browser/test environments where matchMedia doesn't
+  // exist at all (e.g. SSR) instead of letting onMounted throw: fail closed
+  // by simply not starting the cursor-linked parallax, rather than
+  // surfacing a mount error. Evergreen browsers all support matchMedia and
+  // MediaQueryList.addEventListener, so no further feature-detection is
+  // needed beyond this. Still lands on the rest pose so this path doesn't
+  // visibly differ from every other "no cursor-linked motion" case.
+  if (typeof window.matchMedia !== "function") {
+    resetParallaxTransforms();
+    return;
+  }
+
+  reducedMotionQuery = window.matchMedia(REDUCED_MOTION_QUERY);
+  // Apply the initial preference before subscribing to future changes: if
+  // addEventListener isn't available on this MediaQueryList and throws, the
+  // visitor's current preference has still been respected.
+  handleReducedMotionChange(reducedMotionQuery);
+  reducedMotionQuery.addEventListener("change", handleReducedMotionChange);
 });
 
 onUnmounted(() => {
   clearInterval(tagTimer);
   clearInterval(logTimer);
   clearTimeout(toastTimer);
-  window.removeEventListener("mousemove", onMouseMove);
   window.removeEventListener("keydown", onKeyDown);
-  cancelAnimationFrame(rafId);
+  reducedMotionQuery?.removeEventListener("change", handleReducedMotionChange);
+  stopParallax();
 });
 </script>
 
