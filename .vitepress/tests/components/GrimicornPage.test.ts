@@ -620,7 +620,11 @@ describe("GrimicornPage", () => {
 
     it("removes the mousemove listener and stops scheduling frames on unmount", async () => {
       mockPrefersReducedMotion(false);
-      mockAnimationFrame();
+      const {
+        runNextFrame,
+        requestAnimationFrameSpy,
+        cancelAnimationFrameSpy,
+      } = mockAnimationFrame();
       const { findRegisteredListener, removeEventListenerSpy } =
         mockWindowEventListeners();
       const wrapper = shallowMount(GrimicornPage);
@@ -629,11 +633,24 @@ describe("GrimicornPage", () => {
       const registeredMouseMoveListener = findRegisteredListener("mousemove");
       expect(registeredMouseMoveListener).toBeDefined();
 
+      const framesRequestedBeforeUnmount =
+        requestAnimationFrameSpy.mock.calls.length;
+
       wrapper.unmount();
 
       expect(removeEventListenerSpy).toHaveBeenCalledWith(
         "mousemove",
         registeredMouseMoveListener,
+      );
+      expect(cancelAnimationFrameSpy).toHaveBeenCalled();
+
+      // The loop calls requestAnimationFrame again from inside its own
+      // callback, so cancelling the pending frame is the only thing that
+      // stops it: running whatever frame was still queued at unmount must
+      // not re-schedule another one.
+      runNextFrame();
+      expect(requestAnimationFrameSpy.mock.calls.length).toBe(
+        framesRequestedBeforeUnmount,
       );
     });
 

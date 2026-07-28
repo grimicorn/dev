@@ -51,8 +51,22 @@ const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 // the image's rounded, overflow-hidden container. It has to be preserved at
 // rest (reduced motion, or the pointer sitting dead center) too, or toggling
 // between the two visibly pops the image's size.
-const HERO_PARALLAX = { amount: 16, rotation: 1.0, scale: 1.06 };
-const PORTRAIT_PARALLAX = { amount: 11, rotation: 0.7, scale: 1.08 };
+interface ParallaxConfig {
+  amount: number;
+  rotation: number;
+  scale: number;
+}
+
+const HERO_PARALLAX: ParallaxConfig = {
+  amount: 16,
+  rotation: 1.0,
+  scale: 1.06,
+};
+const PORTRAIT_PARALLAX: ParallaxConfig = {
+  amount: 11,
+  rotation: 0.7,
+  scale: 1.08,
+};
 
 const tagIndex = ref(0);
 const logs = ref<LogEntry[]>([]);
@@ -103,29 +117,20 @@ function tick() {
   mouse.ty += (mouse.y - mouse.ty) * 0.07;
 
   const applyParallax = (
-    el: HTMLImageElement | null,
-    amt: number,
-    rot: number,
-    scale: number,
+    imageElement: HTMLImageElement | null,
+    parallax: ParallaxConfig,
   ) => {
-    if (!el) {
+    if (!imageElement) {
       return;
     }
-    el.style.transform = `translate(${(mouse.tx * amt).toFixed(2)}px,${(mouse.ty * amt).toFixed(2)}px) rotate(${(mouse.tx * rot).toFixed(2)}deg) scale(${scale})`;
+    const translateX = (mouse.tx * parallax.amount).toFixed(2);
+    const translateY = (mouse.ty * parallax.amount).toFixed(2);
+    const rotate = (mouse.tx * parallax.rotation).toFixed(2);
+    imageElement.style.transform = `translate(${translateX}px,${translateY}px) rotate(${rotate}deg) scale(${parallax.scale})`;
   };
 
-  applyParallax(
-    imageHeroRef.value,
-    HERO_PARALLAX.amount,
-    HERO_PARALLAX.rotation,
-    HERO_PARALLAX.scale,
-  );
-  applyParallax(
-    imagePortraitRef.value,
-    PORTRAIT_PARALLAX.amount,
-    PORTRAIT_PARALLAX.rotation,
-    PORTRAIT_PARALLAX.scale,
-  );
+  applyParallax(imageHeroRef.value, HERO_PARALLAX);
+  applyParallax(imagePortraitRef.value, PORTRAIT_PARALLAX);
 
   rafId = requestAnimationFrame(tick);
 }
@@ -134,17 +139,17 @@ function tick() {
 // rather than clearing the transform entirely — see the scale comment above.
 function resetParallaxTransform(
   imageElement: HTMLImageElement | null,
-  scale: number,
+  parallax: ParallaxConfig,
 ) {
   if (!imageElement) {
     return;
   }
-  imageElement.style.transform = `scale(${scale})`;
+  imageElement.style.transform = `scale(${parallax.scale})`;
 }
 
 function resetParallaxTransforms() {
-  resetParallaxTransform(imageHeroRef.value, HERO_PARALLAX.scale);
-  resetParallaxTransform(imagePortraitRef.value, PORTRAIT_PARALLAX.scale);
+  resetParallaxTransform(imageHeroRef.value, HERO_PARALLAX);
+  resetParallaxTransform(imagePortraitRef.value, PORTRAIT_PARALLAX);
 }
 
 // Starts the cursor-linked parallax loop. No-op if it's already running, and
