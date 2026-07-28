@@ -471,7 +471,11 @@ describe("GrimicornPage", () => {
 
     it("stops the loop and clears any applied transform when the preference switches to reduced motion at runtime", async () => {
       const { setMatches } = mockPrefersReducedMotion(false);
-      const { runNextFrame, cancelAnimationFrameSpy } = mockAnimationFrame();
+      const {
+        runNextFrame,
+        requestAnimationFrameSpy,
+        cancelAnimationFrameSpy,
+      } = mockAnimationFrame();
       const { findRegisteredListener, removeEventListenerSpy } =
         mockWindowEventListeners();
       const wrapper = shallowMount(GrimicornPage);
@@ -499,6 +503,18 @@ describe("GrimicornPage", () => {
       // instant reduced motion is turned on.
       expect(getHeroTransform(wrapper)).toBe(HERO_REST_TRANSFORM);
       expect(getPortraitTransform(wrapper)).toBe(PORTRAIT_REST_TRANSFORM);
+
+      // Confirms cancelAnimationFrame actually cancelled the frame that was
+      // pending, not a stale/wrong id: if it hadn't, the queued tick()
+      // callback would still be sitting in the queue, re-schedule itself,
+      // and clobber the rest pose the instant it's run.
+      const framesRequestedAfterStop =
+        requestAnimationFrameSpy.mock.calls.length;
+      runNextFrame();
+      expect(requestAnimationFrameSpy.mock.calls.length).toBe(
+        framesRequestedAfterStop,
+      );
+      expect(getHeroTransform(wrapper)).toBe(HERO_REST_TRANSFORM);
 
       wrapper.unmount();
     });

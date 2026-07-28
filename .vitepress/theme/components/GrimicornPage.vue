@@ -112,22 +112,24 @@ function onMouseMove(e: MouseEvent) {
   mouse.y = e.clientY / window.innerHeight - 0.5;
 }
 
+// Applies the cursor-linked translate/rotate on top of the constant overzoom
+// scale — see the scale comment above.
+function applyParallax(
+  imageElement: HTMLImageElement | null,
+  parallax: ParallaxConfig,
+) {
+  if (!imageElement) {
+    return;
+  }
+  const translateX = (mouse.tx * parallax.amount).toFixed(2);
+  const translateY = (mouse.ty * parallax.amount).toFixed(2);
+  const rotate = (mouse.tx * parallax.rotation).toFixed(2);
+  imageElement.style.transform = `translate(${translateX}px,${translateY}px) rotate(${rotate}deg) scale(${parallax.scale})`;
+}
+
 function tick() {
   mouse.tx += (mouse.x - mouse.tx) * 0.07;
   mouse.ty += (mouse.y - mouse.ty) * 0.07;
-
-  const applyParallax = (
-    imageElement: HTMLImageElement | null,
-    parallax: ParallaxConfig,
-  ) => {
-    if (!imageElement) {
-      return;
-    }
-    const translateX = (mouse.tx * parallax.amount).toFixed(2);
-    const translateY = (mouse.ty * parallax.amount).toFixed(2);
-    const rotate = (mouse.tx * parallax.rotation).toFixed(2);
-    imageElement.style.transform = `translate(${translateX}px,${translateY}px) rotate(${rotate}deg) scale(${parallax.scale})`;
-  };
 
   applyParallax(imageHeroRef.value, HERO_PARALLAX);
   applyParallax(imagePortraitRef.value, PORTRAIT_PARALLAX);
@@ -179,6 +181,7 @@ function stopParallax() {
   parallaxActive = false;
   window.removeEventListener("mousemove", onMouseMove);
   cancelAnimationFrame(rafId);
+  rafId = 0;
   mouse.x = 0;
   mouse.y = 0;
   mouse.tx = 0;
@@ -262,8 +265,11 @@ onMounted(() => {
   }
 
   reducedMotionQuery = window.matchMedia(REDUCED_MOTION_QUERY);
-  reducedMotionQuery.addEventListener("change", handleReducedMotionChange);
+  // Apply the initial preference before subscribing to future changes: if
+  // addEventListener isn't available on this MediaQueryList and throws, the
+  // visitor's current preference has still been respected.
   handleReducedMotionChange(reducedMotionQuery);
+  reducedMotionQuery.addEventListener("change", handleReducedMotionChange);
 });
 
 onUnmounted(() => {
