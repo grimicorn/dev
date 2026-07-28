@@ -559,6 +559,45 @@ describe("GrimicornPage", () => {
       wrapper.unmount();
     });
 
+    it("never stacks a duplicate mousemove listener when a redundant change event fires while already running", async () => {
+      const { setMatches } = mockPrefersReducedMotion(true);
+      mockAnimationFrame();
+      const { addEventListenerSpy } = mockWindowEventListeners();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      setMatches(false);
+      await wrapper.vm.$nextTick();
+      // Fires "not reduced" again without an intervening "reduced" event —
+      // this is the only case where startParallax()'s
+      // `if (parallaxActive) return;` guard is the sole thing preventing a
+      // second listener (and a second concurrent rAF loop) from stacking up.
+      setMatches(false);
+      await wrapper.vm.$nextTick();
+
+      const mouseMoveRegistrationsWhileRunning =
+        addEventListenerSpy.mock.calls.filter(
+          ([eventName]) => eventName === "mousemove",
+        );
+      expect(mouseMoveRegistrationsWhileRunning).toHaveLength(1);
+
+      // A genuine stop/resume cycle after that should still add exactly one
+      // more registration, confirming the guard isn't just permanently
+      // latched shut.
+      setMatches(true);
+      await wrapper.vm.$nextTick();
+      setMatches(false);
+      await wrapper.vm.$nextTick();
+
+      const mouseMoveRegistrationsAfterCycle =
+        addEventListenerSpy.mock.calls.filter(
+          ([eventName]) => eventName === "mousemove",
+        );
+      expect(mouseMoveRegistrationsAfterCycle).toHaveLength(2);
+
+      wrapper.unmount();
+    });
+
     it("removes the exact prefers-reduced-motion change listener that was registered, on unmount", async () => {
       const { mediaQueryList } = mockPrefersReducedMotion(false);
       const wrapper = shallowMount(GrimicornPage);
@@ -613,6 +652,18 @@ describe("GrimicornPage", () => {
 
         expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
         expect(findRegisteredListener("mousemove")).toBeUndefined();
+
+        // Same rest pose as every other "no cursor-linked motion" path, so
+        // an environment without matchMedia doesn't render a permanently
+        // different image crop than every other visitor. wrapper is always
+        // defined here: shallowMount() throwing would have already failed
+        // the expect(...).not.toThrow() assertion above.
+        expect(getHeroTransform(wrapper as GrimicornWrapper)).toBe(
+          HERO_REST_TRANSFORM,
+        );
+        expect(getPortraitTransform(wrapper as GrimicornWrapper)).toBe(
+          PORTRAIT_REST_TRANSFORM,
+        );
 
         wrapper?.unmount();
       } finally {

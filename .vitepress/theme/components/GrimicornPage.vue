@@ -159,19 +159,21 @@ function startParallax() {
   rafId = requestAnimationFrame(tick);
 }
 
-// Stops the parallax loop and clears any transform it already applied, so a
-// visitor who enables reduced motion mid-session isn't left with the images
-// frozen mid-offset. Also resets the eased cursor offsets so that if the
-// visitor later turns reduced motion back off, the loop eases in from rest
-// instead of snapping straight to wherever the cursor last was.
+// Stops the parallax loop (if running) and always lands the images on the
+// constant overzoom rest pose, so every "no cursor-linked motion" caller —
+// reduced motion at mount, reduced motion mid-session, or matchMedia being
+// unavailable entirely — produces the same visible result instead of some
+// paths leaving no transform at all. Also resets the eased cursor offsets so
+// that if the visitor later turns reduced motion back off, the loop eases in
+// from rest instead of snapping straight to wherever the cursor last was.
 function stopParallax() {
+  resetParallaxTransforms();
   if (!parallaxActive) {
     return;
   }
   parallaxActive = false;
   window.removeEventListener("mousemove", onMouseMove);
   cancelAnimationFrame(rafId);
-  resetParallaxTransforms();
   mouse.x = 0;
   mouse.y = 0;
   mouse.tx = 0;
@@ -186,12 +188,7 @@ function handleReducedMotionChange(
   query: MediaQueryList | MediaQueryListEvent,
 ) {
   if (query.matches) {
-    // stopParallax() only resets the rest pose if the loop had actually
-    // been running; call it unconditionally too so a visitor who already
-    // prefers reduced motion at mount (the common case) still gets the
-    // rest pose instead of no transform at all.
     stopParallax();
-    resetParallaxTransforms();
     return;
   }
   startParallax();
@@ -252,8 +249,10 @@ onMounted(() => {
   // by simply not starting the cursor-linked parallax, rather than
   // surfacing a mount error. Evergreen browsers all support matchMedia and
   // MediaQueryList.addEventListener, so no further feature-detection is
-  // needed beyond this.
+  // needed beyond this. Still lands on the rest pose so this path doesn't
+  // visibly differ from every other "no cursor-linked motion" case.
   if (typeof window.matchMedia !== "function") {
+    resetParallaxTransforms();
     return;
   }
 
