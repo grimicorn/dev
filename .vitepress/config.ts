@@ -55,8 +55,8 @@ export default defineConfig({
     ],
     ["meta", { property: "og:description", content: DESCRIPTION }],
     ["meta", { property: "og:image", content: OG_IMAGE }],
-    ["meta", { property: "og:image:width", content: "1200" }],
-    ["meta", { property: "og:image:height", content: "630" }],
+    ["meta", { property: "og:image:width", content: "1824" }],
+    ["meta", { property: "og:image:height", content: "1824" }],
     // Twitter Card
     ["meta", { name: "twitter:card", content: "summary_large_image" }],
     [
