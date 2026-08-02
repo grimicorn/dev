@@ -181,12 +181,14 @@ function dispatchMouseMove(clientX: number, clientY: number) {
 }
 
 function getHeroTransform(wrapper: GrimicornWrapper) {
-  return wrapper.find('img[alt="Grimicorn — skeletal rainbow unicorn"]').element
-    .style.transform;
+  return wrapper.get<HTMLImageElement>(
+    'img[alt="Grimicorn — skeletal rainbow unicorn"]',
+  ).element.style.transform;
 }
 
 function getPortraitTransform(wrapper: GrimicornWrapper) {
-  return wrapper.find('img[alt="Grimicorn portrait"]').element.style.transform;
+  return wrapper.get<HTMLImageElement>('img[alt="Grimicorn portrait"]').element
+    .style.transform;
 }
 
 function parseTranslateXPixels(transform: string) {
