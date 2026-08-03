@@ -15,8 +15,11 @@ const PNG_WIDTH_OFFSET = 16;
 const PNG_HEIGHT_OFFSET = 20;
 const PNG_HEADER_MIN_BYTES = 24;
 
-// Base used only to resolve a root-relative og:image path; ignored for absolute URLs.
+// Base used only to resolve root-relative asset paths; ignored for absolute URLs.
 const URL_RESOLUTION_BASE = "https://example.test";
+
+// Site background (`--color-bg` in theme/style.css); the PWA splash must match it.
+const SITE_BACKGROUND_COLOR = "#0a0a0b";
 
 function readPngDimensions(filePath: string) {
   const buffer = readFileSync(filePath);
@@ -60,14 +63,47 @@ function findMetaContent(identifier: string) {
   return content;
 }
 
-function resolveMetaImagePath(identifier: string) {
-  const imageUrl = findMetaContent(identifier);
-  const pathname = new URL(imageUrl, URL_RESOLUTION_BASE).pathname.replace(
+function resolvePublicAssetPath(url: string) {
+  const pathname = new URL(url, URL_RESOLUTION_BASE).pathname.replace(
     /^\//,
     "",
   );
   return resolve(PUBLIC_DIR, pathname);
 }
+
+function resolveMetaImagePath(identifier: string) {
+  return resolvePublicAssetPath(findMetaContent(identifier));
+}
+
+function findLinkHref(rel: string) {
+  const head = config.head ?? [];
+  const entry = head.find(
+    ([tag, attributes]) => tag === "link" && attributes?.rel === rel,
+  );
+  if (!entry) {
+    throw new Error(`Missing link tag for rel="${rel}"`);
+  }
+  const href = entry[1].href;
+  if (href === undefined) {
+    throw new Error(`Link tag "${rel}" has no href attribute`);
+  }
+  return href;
+}
+
+function readWebManifest() {
+  return JSON.parse(
+    readFileSync(resolvePublicAssetPath(findLinkHref("manifest")), "utf8"),
+  );
+}
+
+describe("Web app manifest colors", () => {
+  it("pins manifest and theme-color to the site background so the PWA splash does not flash white", () => {
+    const manifest = readWebManifest();
+    expect(findMetaContent("theme-color")).toBe(SITE_BACKGROUND_COLOR);
+    expect(manifest.theme_color).toBe(SITE_BACKGROUND_COLOR);
+    expect(manifest.background_color).toBe(SITE_BACKGROUND_COLOR);
+  });
+});
 
 describe("Open Graph image metadata", () => {
   it("declares dimensions that match the real og:image file", () => {
