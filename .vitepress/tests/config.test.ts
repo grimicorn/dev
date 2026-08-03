@@ -18,6 +18,11 @@ const PNG_HEADER_MIN_BYTES = 24;
 // Base used only to resolve a root-relative og:image path; ignored for absolute URLs.
 const URL_RESOLUTION_BASE = "https://example.test";
 
+// Landscape banner spec: platforms render summary_large_image at ~1.91:1.
+const OG_IMAGE_FILE = "grimicorn-og.png";
+const OG_EXPECTED_WIDTH = 1200;
+const OG_EXPECTED_HEIGHT = 630;
+
 function readPngDimensions(filePath: string) {
   const buffer = readFileSync(filePath);
   if (buffer.length < PNG_HEADER_MIN_BYTES) {
@@ -70,15 +75,26 @@ function resolveMetaImagePath(identifier: string) {
 }
 
 describe("Open Graph image metadata", () => {
-  it("declares dimensions that match the real og:image file", () => {
+  it("points twitter:image at the same asset as og:image", () => {
+    expect(findMetaContent("twitter:image")).toBe(findMetaContent("og:image"));
+  });
+
+  it("serves a dedicated landscape banner asset", () => {
+    expect(resolveMetaImagePath("og:image")).toBe(
+      resolve(PUBLIC_DIR, "assets", OG_IMAGE_FILE),
+    );
+  });
+
+  it("declares the 1200x630 landscape dimensions", () => {
+    expect(findMetaContent("og:image:width")).toBe(String(OG_EXPECTED_WIDTH));
+    expect(findMetaContent("og:image:height")).toBe(String(OG_EXPECTED_HEIGHT));
+  });
+
+  it("ships a landscape banner file matching the declared dimensions", () => {
     const { width, height } = readPngDimensions(
       resolveMetaImagePath("og:image"),
     );
-    expect(findMetaContent("og:image:width")).toBe(String(width));
-    expect(findMetaContent("og:image:height")).toBe(String(height));
-  });
-
-  it("points twitter:image at the same asset as og:image", () => {
-    expect(findMetaContent("twitter:image")).toBe(findMetaContent("og:image"));
+    expect(width).toBe(OG_EXPECTED_WIDTH);
+    expect(height).toBe(OG_EXPECTED_HEIGHT);
   });
 });
