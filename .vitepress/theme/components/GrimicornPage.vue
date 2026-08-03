@@ -294,8 +294,11 @@ onMounted(() => {
 
   // Guard against non-browser/test environments where matchMedia doesn't
   // exist at all (e.g. SSR) instead of letting onMounted throw: fail closed
-  // by simply not starting the cursor-linked parallax, rather than
-  // surfacing a mount error. Evergreen browsers all support matchMedia and
+  // by not starting any timed motion — neither the cursor-linked parallax nor
+  // the auto-advancing tagline/log timers — rather than surfacing a mount
+  // error. When the preference is unknowable, no motion is the safe default,
+  // so the static first tagline and seeded log entries simply stay put.
+  // Evergreen browsers all support matchMedia and
   // MediaQueryList.addEventListener, so no further feature-detection is
   // needed beyond this. Still lands on the rest pose so this path doesn't
   // visibly differ from every other "no cursor-linked motion" case.
