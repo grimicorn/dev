@@ -47,9 +47,10 @@ const KONAMI = [
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 // The two auto-advancing content swaps (tagline rotation and chaos.log stream)
-// are themselves motion for WCAG 2.2.2 purposes, so their cadences live here as
-// named constants and their timers are gated on the same reduced-motion check
-// the CSS animations and cursor parallax already use.
+// are themselves motion, so their cadences live here as named constants and
+// their timers are gated on the same prefers-reduced-motion check the CSS
+// animations and cursor parallax already use — a reduced-motion visitor sees
+// static text instead of it mutating roughly twice a second (WCAG 2.3.3).
 const TAGLINE_ROTATION_INTERVAL_MS = 2800;
 const LOG_APPEND_INTERVAL_MS = 2000;
 const INITIAL_LOG_COUNT = 6;
@@ -200,8 +201,8 @@ function stopParallax() {
 
 // Starts the auto-advancing tagline rotation and chaos.log stream. No-op if
 // already running, and skipped entirely under reduced motion so the mutating
-// text never starts in the first place (WCAG 2.2.2) — the static first tagline
-// and the initial log entries stay put instead.
+// text never starts in the first place — the static first tagline and the
+// initial log entries stay put instead.
 function startContentTimers() {
   if (contentTimersActive) {
     return;

@@ -603,6 +603,12 @@ describe("GrimicornPage", () => {
         );
       expect(mouseMoveRegistrationsWhileRunning).toHaveLength(1);
 
+      // The content timers share the same re-entrancy guard: the redundant
+      // "not reduced" event must not overwrite tagTimer/logTimer with a second
+      // pair whose ids stopContentTimers() could never clear. rAF is spied out
+      // here, so exactly the two intervals (tagline + log) should be pending.
+      expect(vi.getTimerCount()).toBe(2);
+
       // A genuine stop/resume cycle after that should still add exactly one
       // more registration, confirming the guard isn't just permanently
       // latched shut.
@@ -618,6 +624,20 @@ describe("GrimicornPage", () => {
       expect(mouseMoveRegistrationsAfterCycle).toHaveLength(2);
 
       wrapper.unmount();
+    });
+
+    it("clears the tagline and log timers on unmount so they cannot keep mutating after teardown", async () => {
+      mockPrefersReducedMotion(false);
+      mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      // rAF is spied out, so the only pending fake timers are the two intervals.
+      expect(vi.getTimerCount()).toBe(2);
+
+      wrapper.unmount();
+
+      expect(vi.getTimerCount()).toBe(0);
     });
 
     it("removes the exact prefers-reduced-motion change listener that was registered, on unmount", async () => {
