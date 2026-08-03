@@ -46,6 +46,15 @@ const KONAMI = [
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
+// The two auto-advancing content swaps (tagline rotation and chaos.log stream)
+// are themselves motion for WCAG 2.2.2 purposes, so their cadences live here as
+// named constants and their timers are gated on the same reduced-motion check
+// the CSS animations and cursor parallax already use.
+const TAGLINE_ROTATION_INTERVAL_MS = 2800;
+const LOG_APPEND_INTERVAL_MS = 2000;
+const INITIAL_LOG_COUNT = 6;
+const MAX_LOG_COUNT = 8;
+
 // The scale here isn't part of the cursor-linked motion — it's a constant
 // slight overzoom so the translate/rotate wobble never reveals an edge past
 // the image's rounded, overflow-hidden container. It has to be preserved at
@@ -88,6 +97,7 @@ let rafId = 0;
 let konamiPos = 0;
 let reducedMotionQuery: MediaQueryList | null = null;
 let parallaxActive = false;
+let contentTimersActive = false;
 
 const currentTagline = computed(() => TAGLINES[tagIndex.value]);
 
@@ -188,18 +198,53 @@ function stopParallax() {
   mouse.ty = 0;
 }
 
+// Starts the auto-advancing tagline rotation and chaos.log stream. No-op if
+// already running, and skipped entirely under reduced motion so the mutating
+// text never starts in the first place (WCAG 2.2.2) — the static first tagline
+// and the initial log entries stay put instead.
+function startContentTimers() {
+  if (contentTimersActive) {
+    return;
+  }
+  contentTimersActive = true;
+  tagTimer = window.setInterval(() => {
+    tagIndex.value = (tagIndex.value + 1) % TAGLINES.length;
+  }, TAGLINE_ROTATION_INTERVAL_MS);
+  logTimer = window.setInterval(() => {
+    const text = LOG_POOL[Math.floor(Math.random() * LOG_POOL.length)];
+    logs.value = [...logs.value, stamp(text)].slice(-MAX_LOG_COUNT);
+  }, LOG_APPEND_INTERVAL_MS);
+}
+
+// Stops both content timers (if running). Leaves the currently-shown tagline
+// and log entries in place, so turning reduced motion on mid-session simply
+// freezes the content where it is rather than clearing it.
+function stopContentTimers() {
+  if (!contentTimersActive) {
+    return;
+  }
+  contentTimersActive = false;
+  clearInterval(tagTimer);
+  clearInterval(logTimer);
+  tagTimer = 0;
+  logTimer = 0;
+}
+
 // Takes the MediaQueryList (initial check) or MediaQueryListEvent (change
 // event) directly rather than re-reading the outer reducedMotionQuery
 // variable, so the accessibility guard can't fail open if that binding is
-// ever missing by the time this runs.
+// ever missing by the time this runs. Governs every timed motion on the page:
+// the cursor parallax and both auto-advancing content swaps.
 function handleReducedMotionChange(
   query: MediaQueryList | MediaQueryListEvent,
 ) {
   if (query.matches) {
     stopParallax();
+    stopContentTimers();
     return;
   }
   startParallax();
+  startContentTimers();
 }
 
 function onKeyDown(e: KeyboardEvent) {
@@ -240,15 +285,10 @@ function toggleRave() {
 }
 
 onMounted(() => {
-  tagTimer = window.setInterval(() => {
-    tagIndex.value = (tagIndex.value + 1) % TAGLINES.length;
-  }, 2800);
-
-  logs.value = LOG_POOL.slice(0, 6).map(stamp);
-  logTimer = window.setInterval(() => {
-    const text = LOG_POOL[Math.floor(Math.random() * LOG_POOL.length)];
-    logs.value = [...logs.value, stamp(text)].slice(-8);
-  }, 2000);
+  // Seed the static content that shows regardless of motion preference; the
+  // auto-advancing timers are started only by handleReducedMotionChange below,
+  // so a reduced-motion visitor keeps this first tagline and these entries.
+  logs.value = LOG_POOL.slice(0, INITIAL_LOG_COUNT).map(stamp);
 
   window.addEventListener("keydown", onKeyDown);
 
@@ -273,8 +313,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  clearInterval(tagTimer);
-  clearInterval(logTimer);
+  stopContentTimers();
   clearTimeout(toastTimer);
   window.removeEventListener("keydown", onKeyDown);
   reducedMotionQuery?.removeEventListener("change", handleReducedMotionChange);

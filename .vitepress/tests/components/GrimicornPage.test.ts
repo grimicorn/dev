@@ -68,6 +68,9 @@ function findToast(wrapper: GrimicornWrapper) {
 }
 
 const REDUCED_MOTION_MEDIA_QUERY = "(prefers-reduced-motion: reduce)";
+const TAGLINE_ROTATION_INTERVAL_MS = 2800;
+const LOG_APPEND_INTERVAL_MS = 2000;
+const INITIAL_LOG_COUNT = 6;
 
 type ReducedMotionChangeListener = (_event: { matches: boolean }) => void;
 type AnimationFrameCallback = (_time: number) => void;
@@ -704,6 +707,83 @@ describe("GrimicornPage", () => {
       } finally {
         window.matchMedia = originalMatchMedia;
       }
+    });
+
+    it("holds the first tagline and never auto-advances it when reduced motion is preferred at mount", async () => {
+      mockPrefersReducedMotion(true);
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      const initialTagline = wrapper
+        .find(".text-fg-muted span:last-child")
+        .text();
+      expect(initialTagline).toBeTruthy();
+
+      // Advance well past several rotation intervals: an unguarded timer would
+      // have swapped the tagline multiple times by now.
+      await vi.advanceTimersByTimeAsync(TAGLINE_ROTATION_INTERVAL_MS * 3);
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".text-fg-muted span:last-child").text()).toBe(
+        initialTagline,
+      );
+
+      wrapper.unmount();
+    });
+
+    it("shows the static initial log entries but never appends to the stream when reduced motion is preferred at mount", async () => {
+      mockPrefersReducedMotion(true);
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      // The static seed still renders — reduced motion suppresses the mutation,
+      // not the content itself.
+      expect(wrapper.findAll(".border-l-2 div").length).toBe(INITIAL_LOG_COUNT);
+
+      await vi.advanceTimersByTimeAsync(LOG_APPEND_INTERVAL_MS * 3);
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.findAll(".border-l-2 div").length).toBe(INITIAL_LOG_COUNT);
+
+      wrapper.unmount();
+    });
+
+    it("freezes the tagline and log stream where they are when the preference switches to reduced motion at runtime", async () => {
+      const { setMatches } = mockPrefersReducedMotion(false);
+      mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      // While motion is allowed the content advances as normal.
+      const taglineBeforeStop = wrapper
+        .find(".text-fg-muted span:last-child")
+        .text();
+      await vi.advanceTimersByTimeAsync(TAGLINE_ROTATION_INTERVAL_MS);
+      await vi.advanceTimersByTimeAsync(LOG_APPEND_INTERVAL_MS);
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find(".text-fg-muted span:last-child").text()).not.toBe(
+        taglineBeforeStop,
+      );
+
+      setMatches(true);
+      await wrapper.vm.$nextTick();
+
+      const taglineAtStop = wrapper
+        .find(".text-fg-muted span:last-child")
+        .text();
+      const logCountAtStop = wrapper.findAll(".border-l-2 div").length;
+
+      await vi.advanceTimersByTimeAsync(
+        TAGLINE_ROTATION_INTERVAL_MS * 3 + LOG_APPEND_INTERVAL_MS * 3,
+      );
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".text-fg-muted span:last-child").text()).toBe(
+        taglineAtStop,
+      );
+      expect(wrapper.findAll(".border-l-2 div").length).toBe(logCountAtStop);
+
+      wrapper.unmount();
     });
   });
 });
