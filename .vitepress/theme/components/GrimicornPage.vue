@@ -47,10 +47,12 @@ const KONAMI = [
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 // The two auto-advancing content swaps (tagline rotation and chaos.log stream)
-// are themselves motion, so their cadences live here as named constants and
-// their timers are gated on the same prefers-reduced-motion check the CSS
-// animations and cursor parallax already use — a reduced-motion visitor sees
-// static text instead of it mutating roughly twice a second (WCAG 2.3.3).
+// are themselves auto-updating motion (WCAG 2.2.2 Pause, Stop, Hide), so their
+// cadences live here as named constants and their timers are gated on the same
+// prefers-reduced-motion check the CSS animations and cursor parallax already
+// use — a reduced-motion visitor sees static text instead of it mutating
+// roughly twice a second. A general pause control for visitors who have not set
+// that OS preference is intentionally out of scope for this change.
 const TAGLINE_ROTATION_INTERVAL_MS = 2800;
 const LOG_APPEND_INTERVAL_MS = 2000;
 const INITIAL_LOG_COUNT = 6;

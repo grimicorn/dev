@@ -771,17 +771,20 @@ describe("GrimicornPage", () => {
       setMatches(false);
       await wrapper.vm.$nextTick();
 
+      // Append enough to push the stream past its cap, so this also exercises
+      // the .slice(-MAX_LOG_COUNT) trim rather than just "grew by some amount".
       await vi.advanceTimersByTimeAsync(
-        TAGLINE_ROTATION_INTERVAL_MS + LOG_APPEND_INTERVAL_MS,
+        TAGLINE_ROTATION_INTERVAL_MS + LOG_APPEND_INTERVAL_MS * 5,
       );
       await wrapper.vm.$nextTick();
 
       expect(wrapper.find(".text-fg-muted span:last-child").text()).not.toBe(
         frozenTagline,
       );
-      expect(wrapper.findAll(".border-l-2 div").length).toBeGreaterThan(
-        frozenLogCount,
-      );
+      // 6 seeded + 5 appended, trimmed back to the cap. MAX_LOG_COUNT (8) >
+      // INITIAL_LOG_COUNT (6), so this still fails if the stream never resumed.
+      expect(MAX_LOG_COUNT).toBeGreaterThan(frozenLogCount);
+      expect(wrapper.findAll(".border-l-2 div").length).toBe(MAX_LOG_COUNT);
 
       wrapper.unmount();
     });
