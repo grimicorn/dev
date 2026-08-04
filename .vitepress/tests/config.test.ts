@@ -18,6 +18,10 @@ const PNG_HEADER_MIN_BYTES = 24;
 // Base used only to resolve a root-relative og:image path; ignored for absolute URLs.
 const URL_RESOLUTION_BASE = "https://example.test";
 
+const MIN_IMAGE_ALT_LENGTH = 20;
+// X (Twitter) truncates image alt text beyond this many characters.
+const MAX_IMAGE_ALT_LENGTH = 420;
+
 function readPngDimensions(filePath: string) {
   const buffer = readFileSync(filePath);
   if (buffer.length < PNG_HEADER_MIN_BYTES) {
@@ -80,5 +84,14 @@ describe("Open Graph image metadata", () => {
 
   it("points twitter:image at the same asset as og:image", () => {
     expect(findMetaContent("twitter:image")).toBe(findMetaContent("og:image"));
+  });
+
+  it("declares usable alt text for og:image and twitter:image", () => {
+    const altText = findMetaContent("og:image:alt");
+    expect(altText.trim().length).toBeGreaterThanOrEqual(MIN_IMAGE_ALT_LENGTH);
+    expect(altText.trim().length).toBeLessThanOrEqual(MAX_IMAGE_ALT_LENGTH);
+    expect(altText).not.toBe(findMetaContent("og:title"));
+    expect(altText).not.toBe(findMetaContent("og:description"));
+    expect(findMetaContent("twitter:image:alt")).toBe(altText);
   });
 });
