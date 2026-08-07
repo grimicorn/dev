@@ -68,6 +68,10 @@ function findToast(wrapper: GrimicornWrapper) {
 }
 
 const REDUCED_MOTION_MEDIA_QUERY = "(prefers-reduced-motion: reduce)";
+const TAGLINE_ROTATION_INTERVAL_MS = 2800;
+const LOG_APPEND_INTERVAL_MS = 2000;
+const INITIAL_LOG_COUNT = 6;
+const MAX_LOG_COUNT = 8;
 
 type ReducedMotionChangeListener = (_event: { matches: boolean }) => void;
 type AnimationFrameCallback = (_time: number) => void;
@@ -267,7 +271,7 @@ describe("GrimicornPage", () => {
     await wrapper.vm.$nextTick();
     const initial = wrapper.find(".text-fg-muted span:last-child").text();
 
-    await vi.advanceTimersByTimeAsync(2800);
+    await vi.advanceTimersByTimeAsync(TAGLINE_ROTATION_INTERVAL_MS);
     await wrapper.vm.$nextTick();
 
     const updated = wrapper.find(".text-fg-muted span:last-child").text();
@@ -279,7 +283,7 @@ describe("GrimicornPage", () => {
     const wrapper = shallowMount(GrimicornPage);
     await wrapper.vm.$nextTick();
     const entries = wrapper.findAll(".border-l-2 div");
-    expect(entries.length).toBe(6);
+    expect(entries.length).toBe(INITIAL_LOG_COUNT);
     wrapper.unmount();
   });
 
@@ -288,7 +292,7 @@ describe("GrimicornPage", () => {
     await wrapper.vm.$nextTick();
     const countBefore = wrapper.findAll(".border-l-2 div").length;
 
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(LOG_APPEND_INTERVAL_MS);
     await wrapper.vm.$nextTick();
 
     expect(wrapper.findAll(".border-l-2 div").length).toBe(countBefore + 1);
@@ -718,6 +722,12 @@ describe("GrimicornPage", () => {
         );
       expect(mouseMoveRegistrationsWhileRunning).toHaveLength(1);
 
+      // The content timers share the same re-entrancy guard: the redundant
+      // "not reduced" event must not overwrite tagTimer/logTimer with a second
+      // pair whose ids stopContentTimers() could never clear. rAF is spied out
+      // here, so exactly the two intervals (tagline + log) should be pending.
+      expect(vi.getTimerCount()).toBe(2);
+
       // A genuine stop/resume cycle after that should still add exactly one
       // more registration, confirming the guard isn't just permanently
       // latched shut.
@@ -733,6 +743,20 @@ describe("GrimicornPage", () => {
       expect(mouseMoveRegistrationsAfterCycle).toHaveLength(2);
 
       wrapper.unmount();
+    });
+
+    it("clears the tagline and log timers on unmount so they cannot keep mutating after teardown", async () => {
+      mockPrefersReducedMotion(false);
+      mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      // rAF is spied out, so the only pending fake timers are the two intervals.
+      expect(vi.getTimerCount()).toBe(2);
+
+      wrapper.unmount();
+
+      expect(vi.getTimerCount()).toBe(0);
     });
 
     it("removes the exact prefers-reduced-motion change listener that was registered, on unmount", async () => {
@@ -819,10 +843,150 @@ describe("GrimicornPage", () => {
           PORTRAIT_REST_TRANSFORM,
         );
 
+        // Content timers fail closed on this path too: with the preference
+        // unknowable, the tagline and log stream stay frozen on their static
+        // seed rather than auto-mutating without a way to know it's safe.
+        const definedWrapper = wrapper as GrimicornWrapper;
+        const taglineAtMount = definedWrapper
+          .find(".text-fg-muted span:last-child")
+          .text();
+        await vi.advanceTimersByTimeAsync(
+          TAGLINE_ROTATION_INTERVAL_MS * 2 + LOG_APPEND_INTERVAL_MS * 2,
+        );
+        await definedWrapper.vm.$nextTick();
+        expect(
+          definedWrapper.find(".text-fg-muted span:last-child").text(),
+        ).toBe(taglineAtMount);
+        expect(definedWrapper.findAll(".border-l-2 div").length).toBe(
+          INITIAL_LOG_COUNT,
+        );
+
         wrapper?.unmount();
       } finally {
         window.matchMedia = originalMatchMedia;
       }
+    });
+
+    it("resumes the tagline rotation and log stream when the preference switches away from reduced motion at runtime", async () => {
+      const { setMatches } = mockPrefersReducedMotion(true);
+      mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      // Frozen while reduced motion is on.
+      const frozenTagline = wrapper
+        .find(".text-fg-muted span:last-child")
+        .text();
+      const frozenLogCount = wrapper.findAll(".border-l-2 div").length;
+      await vi.advanceTimersByTimeAsync(
+        TAGLINE_ROTATION_INTERVAL_MS + LOG_APPEND_INTERVAL_MS,
+      );
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find(".text-fg-muted span:last-child").text()).toBe(
+        frozenTagline,
+      );
+      expect(wrapper.findAll(".border-l-2 div").length).toBe(frozenLogCount);
+
+      setMatches(false);
+      await wrapper.vm.$nextTick();
+
+      // Append enough to push the stream past its cap, so this also exercises
+      // the .slice(-MAX_LOG_COUNT) trim rather than just "grew by some amount".
+      await vi.advanceTimersByTimeAsync(
+        TAGLINE_ROTATION_INTERVAL_MS + LOG_APPEND_INTERVAL_MS * 5,
+      );
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".text-fg-muted span:last-child").text()).not.toBe(
+        frozenTagline,
+      );
+      // 6 seeded + 5 appended, trimmed back to the cap. MAX_LOG_COUNT (8) >
+      // INITIAL_LOG_COUNT (6), so this still fails if the stream never resumed.
+      expect(MAX_LOG_COUNT).toBeGreaterThan(frozenLogCount);
+      expect(wrapper.findAll(".border-l-2 div").length).toBe(MAX_LOG_COUNT);
+
+      wrapper.unmount();
+    });
+
+    it("holds the first tagline and never auto-advances it when reduced motion is preferred at mount", async () => {
+      mockPrefersReducedMotion(true);
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      const initialTagline = wrapper
+        .find(".text-fg-muted span:last-child")
+        .text();
+      expect(initialTagline).toBeTruthy();
+
+      // Advance well past several rotation intervals: an unguarded timer would
+      // have swapped the tagline multiple times by now.
+      await vi.advanceTimersByTimeAsync(TAGLINE_ROTATION_INTERVAL_MS * 3);
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".text-fg-muted span:last-child").text()).toBe(
+        initialTagline,
+      );
+
+      wrapper.unmount();
+    });
+
+    it("shows the static initial log entries but never appends to the stream when reduced motion is preferred at mount", async () => {
+      mockPrefersReducedMotion(true);
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      // The static seed still renders — reduced motion suppresses the mutation,
+      // not the content itself.
+      expect(wrapper.findAll(".border-l-2 div").length).toBe(INITIAL_LOG_COUNT);
+
+      await vi.advanceTimersByTimeAsync(LOG_APPEND_INTERVAL_MS * 3);
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.findAll(".border-l-2 div").length).toBe(INITIAL_LOG_COUNT);
+
+      wrapper.unmount();
+    });
+
+    it("freezes the tagline and log stream where they are when the preference switches to reduced motion at runtime", async () => {
+      const { setMatches } = mockPrefersReducedMotion(false);
+      mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      // While motion is allowed the content advances as normal. One rotation
+      // interval both swaps the tagline once and appends one log line (6 → 7),
+      // deliberately stopping below MAX_LOG_COUNT so a later append would be
+      // observable as growth rather than silently trimmed at the cap — that
+      // keeps the frozen-log assertion below from passing vacuously.
+      const taglineBeforeStop = wrapper
+        .find(".text-fg-muted span:last-child")
+        .text();
+      await vi.advanceTimersByTimeAsync(TAGLINE_ROTATION_INTERVAL_MS);
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find(".text-fg-muted span:last-child").text()).not.toBe(
+        taglineBeforeStop,
+      );
+
+      setMatches(true);
+      await wrapper.vm.$nextTick();
+
+      const taglineAtStop = wrapper
+        .find(".text-fg-muted span:last-child")
+        .text();
+      const logCountAtStop = wrapper.findAll(".border-l-2 div").length;
+      expect(logCountAtStop).toBeLessThan(MAX_LOG_COUNT);
+
+      await vi.advanceTimersByTimeAsync(
+        TAGLINE_ROTATION_INTERVAL_MS * 3 + LOG_APPEND_INTERVAL_MS * 3,
+      );
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".text-fg-muted span:last-child").text()).toBe(
+        taglineAtStop,
+      );
+      expect(wrapper.findAll(".border-l-2 div").length).toBe(logCountAtStop);
+
+      wrapper.unmount();
     });
   });
 });
