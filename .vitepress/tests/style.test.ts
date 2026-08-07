@@ -13,8 +13,12 @@ function readStyleCss() {
 describe("brand background token", () => {
   const css = readStyleCss();
 
-  it("defines --color-bg as the brand background literal", () => {
-    expect(css).toMatch(new RegExp(`--color-bg:\\s*${BRAND_BG}\\s*;`, "i"));
+  it("defines --color-bg in @theme as the brand background literal", () => {
+    const themeBlock = css.match(/@theme\s*\{([^}]*)\}/);
+    expect(themeBlock, "@theme block not found").not.toBeNull();
+    expect(themeBlock![1]).toMatch(
+      new RegExp(`--color-bg:\\s*${BRAND_BG}\\s*;`, "i"),
+    );
   });
 
   it("keeps the brand background literal in exactly one place", () => {
@@ -23,7 +27,9 @@ describe("brand background token", () => {
   });
 
   it("sets the html/body background from the token, not a second literal", () => {
-    const htmlBodyBlock = css.match(/(?:^|\})\s*html\s*,[^{]*\{([^}]*)\}/m);
+    const htmlBodyBlock = css.match(
+      /(?:^|\})\s*html\s*,\s*body\s*\{([^}]*background[^}]*)\}/m,
+    );
     expect(htmlBodyBlock, "html/body rule not found").not.toBeNull();
     const block = htmlBodyBlock![1];
     expect(block).toMatch(/background:\s*var\(--color-bg\)\s*;/);
