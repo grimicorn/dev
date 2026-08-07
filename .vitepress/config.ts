@@ -5,6 +5,8 @@ const SITE_URL = "https://grimicorn.dev";
 const DESCRIPTION =
   "A chaotic AI coding sidekick — builds what you don't have time for, then unleashes gremlins to break it before production does.";
 const OG_IMAGE = `${SITE_URL}/assets/grimicorn-hero.png`;
+const OG_IMAGE_ALT =
+  "Grimicorn: a psychedelic, skeletal unicorn with a spiraled horn and flowing rainbow-colored mane, prancing before a rainbow over a surreal landscape.";
 
 const JSON_LD = JSON.stringify({
   "@context": "https://schema.org",
@@ -57,6 +59,7 @@ export default defineConfig({
     ["meta", { property: "og:image", content: OG_IMAGE }],
     ["meta", { property: "og:image:width", content: "1824" }],
     ["meta", { property: "og:image:height", content: "1824" }],
+    ["meta", { property: "og:image:alt", content: OG_IMAGE_ALT }],
     // Twitter Card
     ["meta", { name: "twitter:card", content: "summary_large_image" }],
     [
@@ -65,6 +68,7 @@ export default defineConfig({
     ],
     ["meta", { name: "twitter:description", content: DESCRIPTION }],
     ["meta", { name: "twitter:image", content: OG_IMAGE }],
+    ["meta", { name: "twitter:image:alt", content: OG_IMAGE_ALT }],
     // Structured data
     ["script", { type: "application/ld+json" }, JSON_LD],
     // Favicon

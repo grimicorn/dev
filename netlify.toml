@@ -12,6 +12,7 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains"
     # script-src keeps 'unsafe-inline' because VitePress emits inline bootstrap scripts
     # (dark-mode/mac-os detection, __VP_SITE_DATA__) plus the inline JSON-LD. A static
     # netlify.toml cannot carry the per-build 'sha256-...' hashes those would need;
