@@ -46,6 +46,18 @@ const KONAMI = [
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
+// The two auto-advancing content swaps (tagline rotation and chaos.log stream)
+// are themselves auto-updating motion (WCAG 2.2.2 Pause, Stop, Hide), so their
+// cadences live here as named constants and their timers are gated on the same
+// prefers-reduced-motion check the CSS animations and cursor parallax already
+// use — a reduced-motion visitor sees static text instead of it mutating
+// roughly twice a second. A general pause control for visitors who have not set
+// that OS preference is intentionally out of scope for this change.
+const TAGLINE_ROTATION_INTERVAL_MS = 2800;
+const LOG_APPEND_INTERVAL_MS = 2000;
+const INITIAL_LOG_COUNT = 6;
+const MAX_LOG_COUNT = 8;
+
 // The scale here isn't part of the cursor-linked motion — it's a constant
 // slight overzoom so the translate/rotate wobble never reveals an edge past
 // the image's rounded, overflow-hidden container. It has to be preserved at
@@ -88,6 +100,7 @@ let rafId = 0;
 let konamiPos = 0;
 let reducedMotionQuery: MediaQueryList | null = null;
 let parallaxActive = false;
+let contentTimersActive = false;
 
 const currentTagline = computed(() => TAGLINES[tagIndex.value]);
 
@@ -188,18 +201,53 @@ function stopParallax() {
   mouse.ty = 0;
 }
 
+// Starts the auto-advancing tagline rotation and chaos.log stream. No-op if
+// already running, and skipped entirely under reduced motion so the mutating
+// text never starts in the first place — the static first tagline and the
+// initial log entries stay put instead.
+function startContentTimers() {
+  if (contentTimersActive) {
+    return;
+  }
+  contentTimersActive = true;
+  tagTimer = window.setInterval(() => {
+    tagIndex.value = (tagIndex.value + 1) % TAGLINES.length;
+  }, TAGLINE_ROTATION_INTERVAL_MS);
+  logTimer = window.setInterval(() => {
+    const text = LOG_POOL[Math.floor(Math.random() * LOG_POOL.length)];
+    logs.value = [...logs.value, stamp(text)].slice(-MAX_LOG_COUNT);
+  }, LOG_APPEND_INTERVAL_MS);
+}
+
+// Stops both content timers (if running). Leaves the currently-shown tagline
+// and log entries in place, so turning reduced motion on mid-session simply
+// freezes the content where it is rather than clearing it.
+function stopContentTimers() {
+  if (!contentTimersActive) {
+    return;
+  }
+  contentTimersActive = false;
+  clearInterval(tagTimer);
+  clearInterval(logTimer);
+  tagTimer = 0;
+  logTimer = 0;
+}
+
 // Takes the MediaQueryList (initial check) or MediaQueryListEvent (change
 // event) directly rather than re-reading the outer reducedMotionQuery
 // variable, so the accessibility guard can't fail open if that binding is
-// ever missing by the time this runs.
+// ever missing by the time this runs. Governs every timed motion on the page:
+// the cursor parallax and both auto-advancing content swaps.
 function handleReducedMotionChange(
   query: MediaQueryList | MediaQueryListEvent,
 ) {
   if (query.matches) {
     stopParallax();
+    stopContentTimers();
     return;
   }
   startParallax();
+  startContentTimers();
 }
 
 function onKeyDown(e: KeyboardEvent) {
@@ -240,22 +288,20 @@ function toggleRave() {
 }
 
 onMounted(() => {
-  tagTimer = window.setInterval(() => {
-    tagIndex.value = (tagIndex.value + 1) % TAGLINES.length;
-  }, 2800);
-
-  logs.value = LOG_POOL.slice(0, 6).map(stamp);
-  logTimer = window.setInterval(() => {
-    const text = LOG_POOL[Math.floor(Math.random() * LOG_POOL.length)];
-    logs.value = [...logs.value, stamp(text)].slice(-8);
-  }, 2000);
+  // Seed the static content that shows regardless of motion preference; the
+  // auto-advancing timers are started only by handleReducedMotionChange below,
+  // so a reduced-motion visitor keeps this first tagline and these entries.
+  logs.value = LOG_POOL.slice(0, INITIAL_LOG_COUNT).map(stamp);
 
   window.addEventListener("keydown", onKeyDown);
 
   // Guard against non-browser/test environments where matchMedia doesn't
   // exist at all (e.g. SSR) instead of letting onMounted throw: fail closed
-  // by simply not starting the cursor-linked parallax, rather than
-  // surfacing a mount error. Evergreen browsers all support matchMedia and
+  // by not starting any timed motion — neither the cursor-linked parallax nor
+  // the auto-advancing tagline/log timers — rather than surfacing a mount
+  // error. When the preference is unknowable, no motion is the safe default,
+  // so the static first tagline and seeded log entries simply stay put.
+  // Evergreen browsers all support matchMedia and
   // MediaQueryList.addEventListener, so no further feature-detection is
   // needed beyond this. Still lands on the rest pose so this path doesn't
   // visibly differ from every other "no cursor-linked motion" case.
@@ -273,8 +319,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  clearInterval(tagTimer);
-  clearInterval(logTimer);
+  stopContentTimers();
   clearTimeout(toastTimer);
   window.removeEventListener("keydown", onKeyDown);
   reducedMotionQuery?.removeEventListener("change", handleReducedMotionChange);
@@ -338,33 +383,45 @@ onUnmounted(() => {
       >
         <!-- left -->
         <div>
+          <!-- Decorative eyebrow that sits above the h1, so it stays a div:
+               the h1 below is this section's heading, and promoting an element
+               that precedes the h1 to a heading would put a heading before the
+               page's h1. -->
           <div
             class="text-purple mb-[22px] text-xs tracking-[0.16em] uppercase"
           >
             — grim reaper × unicorn
           </div>
+          <!-- The GRIMICORN / AGENT wordmark is one title split across two
+               visually distinct lines, so it's a single h1 (two block spans)
+               rather than an h1 + h2 — splitting one brand name across two
+               heading levels would create a phantom "AGENT" subsection that
+               the tagline and CTAs below would nest under. The {{ " " }}
+               interpolation is a real space text node between the two spans:
+               without it Vue's whitespace-condense collapses the gap and the
+               name reads as one run-together word for find-in-page, copy, and
+               assistive tech. -->
           <h1
             class="font-display m-0 text-[52px] leading-[0.92] font-bold tracking-[-0.02em] sm:text-[68px] lg:text-[84px]"
           >
-            GRIMICORN
+            <span class="block">GRIMICORN</span>{{ " "
+            }}<span
+              class="animate-rainbow-pan block bg-clip-text text-transparent"
+              style="
+                background-image: linear-gradient(
+                  90deg,
+                  #ff2d9b,
+                  #fb923c,
+                  #facc15,
+                  #a3e635,
+                  #22d3ee,
+                  #a855f7,
+                  #ff2d9b
+                );
+              "
+              >AGENT</span
+            >
           </h1>
-          <div
-            class="font-display animate-rainbow-pan bg-clip-text text-[52px] leading-[0.92] font-bold tracking-[-0.02em] text-transparent sm:text-[68px] lg:text-[84px]"
-            style="
-              background-image: linear-gradient(
-                90deg,
-                #ff2d9b,
-                #fb923c,
-                #facc15,
-                #a3e635,
-                #22d3ee,
-                #a855f7,
-                #ff2d9b
-              );
-            "
-          >
-            AGENT
-          </div>
 
           <div
             class="text-fg-muted mt-[26px] flex items-center gap-[10px] text-[13px]"
@@ -487,9 +544,9 @@ onUnmounted(() => {
 
       <!-- terminal section -->
       <section id="status" class="py-14">
-        <div class="text-fg-dim mb-5 text-xs tracking-[0.16em] uppercase">
-          — what it's doing right now
-        </div>
+        <h2 class="text-fg-dim mb-5 text-xs tracking-[0.16em] uppercase">
+          <span aria-hidden="true">—</span> what it's doing right now
+        </h2>
 
         <div
           class="overflow-hidden rounded-xl border border-white/[0.08] text-[#d4d4d8]"
@@ -655,9 +712,10 @@ onUnmounted(() => {
               </div>
 
               <div>
-                <div class="mb-[10px] text-[12.5px] text-[#737b8a]">
-                  <span class="text-lime">~ %</span> grimicorn links --all
-                </div>
+                <h3 class="mb-[10px] text-[12.5px] text-[#737b8a]">
+                  <span class="text-lime" aria-hidden="true">~ %</span>
+                  grimicorn links --all
+                </h3>
                 <div class="flex flex-col gap-2">
                   <a
                     href="https://github.com/grimicorn-agent"
