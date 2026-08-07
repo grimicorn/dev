@@ -553,13 +553,14 @@ describe("GrimicornPage", () => {
   describe("in-page navigation targets", () => {
     // Pulls the fragment id out of an in-page anchor href ("/#status" or
     // "#status" -> "status"), returning null for anything that isn't a
-    // same-page fragment (external URLs, or a bare "#" with no id).
+    // same-page fragment: external URLs (matched only if they start with the
+    // in-page prefixes, so "https://…#readme" is excluded) and a bare "#" with
+    // no id.
     function fragmentId(href: string) {
-      const hashIndex = href.indexOf("#");
-      if (hashIndex === -1) {
+      if (!href.startsWith("#") && !href.startsWith("/#")) {
         return null;
       }
-      const id = href.slice(hashIndex + 1);
+      const id = href.slice(href.indexOf("#") + 1);
       return id.length > 0 ? id : null;
     }
 
@@ -579,10 +580,15 @@ describe("GrimicornPage", () => {
       // The reconciliation invariant: an advertised fragment must resolve to a
       // <section> carrying that id (a genuine top-level peer), not to a nested
       // div. This fails if "#links" is re-added to the nav while its panel
-      // stays an h3 embedded inside section#status.
+      // stays an h3 embedded inside section#status. Comparing against the
+      // collected section ids (rather than building a `section#${id}` selector)
+      // keeps ids that are legal HTML but illegal CSS from throwing, and names
+      // the offending fragment in the failure output.
+      const sectionIds = wrapper
+        .findAll("section[id]")
+        .map((section) => section.attributes("id"));
       fragmentIds.forEach((id) => {
-        const target = wrapper.find(`section#${id}`);
-        expect(target.exists()).toBe(true);
+        expect(sectionIds).toContain(id);
       });
     });
   });
