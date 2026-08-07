@@ -68,6 +68,10 @@ function findToast(wrapper: GrimicornWrapper) {
 }
 
 const REDUCED_MOTION_MEDIA_QUERY = "(prefers-reduced-motion: reduce)";
+const TAGLINE_ROTATION_INTERVAL_MS = 2800;
+const LOG_APPEND_INTERVAL_MS = 2000;
+const INITIAL_LOG_COUNT = 6;
+const MAX_LOG_COUNT = 8;
 
 type ReducedMotionChangeListener = (_event: { matches: boolean }) => void;
 type AnimationFrameCallback = (_time: number) => void;
@@ -203,6 +207,39 @@ function parseTranslateXPixels(transform: string) {
 const HERO_REST_TRANSFORM = "scale(1.06)";
 const PORTRAIT_REST_TRANSFORM = "scale(1.08)";
 
+// Locates the heading at `tag` whose text includes `text`, throwing (rather
+// than returning undefined) if none matches so callers can use the result
+// directly and a missing heading fails loudly at the call site.
+function findHeadingByText(
+  wrapper: GrimicornWrapper,
+  tag: string,
+  text: string,
+) {
+  const heading = wrapper
+    .findAll(tag)
+    .find((candidate) => candidate.text().includes(text));
+  if (!heading) {
+    throw new Error(`No <${tag}> containing "${text}" was found`);
+  }
+  return heading;
+}
+
+// The accessible name of a heading: the concatenated text of its direct child
+// nodes, skipping any element marked aria-hidden (so decorative ornaments like
+// "—" or "~ %" are excluded, matching how assistive tech computes the name).
+function accessibleName(element: Element) {
+  return Array.from(element.childNodes)
+    .filter(
+      (node) =>
+        node.nodeType !== Node.ELEMENT_NODE ||
+        (node as Element).getAttribute("aria-hidden") !== "true",
+    )
+    .map((node) => node.textContent ?? "")
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 describe("GrimicornPage", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -234,7 +271,7 @@ describe("GrimicornPage", () => {
     await wrapper.vm.$nextTick();
     const initial = wrapper.find(".text-fg-muted span:last-child").text();
 
-    await vi.advanceTimersByTimeAsync(2800);
+    await vi.advanceTimersByTimeAsync(TAGLINE_ROTATION_INTERVAL_MS);
     await wrapper.vm.$nextTick();
 
     const updated = wrapper.find(".text-fg-muted span:last-child").text();
@@ -246,7 +283,7 @@ describe("GrimicornPage", () => {
     const wrapper = shallowMount(GrimicornPage);
     await wrapper.vm.$nextTick();
     const entries = wrapper.findAll(".border-l-2 div");
-    expect(entries.length).toBe(6);
+    expect(entries.length).toBe(INITIAL_LOG_COUNT);
     wrapper.unmount();
   });
 
@@ -255,7 +292,7 @@ describe("GrimicornPage", () => {
     await wrapper.vm.$nextTick();
     const countBefore = wrapper.findAll(".border-l-2 div").length;
 
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(LOG_APPEND_INTERVAL_MS);
     await wrapper.vm.$nextTick();
 
     expect(wrapper.findAll(".border-l-2 div").length).toBe(countBefore + 1);
@@ -425,6 +462,92 @@ describe("GrimicornPage", () => {
     expect(colorfulButton.attributes("aria-pressed")).toBe("false");
 
     wrapper.unmount();
+  });
+
+  describe("semantic heading structure", () => {
+    // The section label / wordmark text that must be exposed as a real heading
+    // at the given level, so a regression back to a styled <div> fails here.
+    const SECTION_HEADINGS = [
+      { tag: "h2", text: "what it's doing right now" },
+      { tag: "h3", text: "grimicorn links --all" },
+    ];
+
+    it("exposes exactly one h1 carrying the whole wordmark as a single readable name", async () => {
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      const level1Headings = wrapper.findAll("h1");
+      expect(level1Headings).toHaveLength(1);
+
+      // Both wordmark lines live as distinct spans inside the single h1 (not
+      // split across separate heading levels).
+      const wordmarkLines = level1Headings[0]
+        .findAll("span")
+        .map((line) => line.text());
+      expect(wordmarkLines).toEqual(["GRIMICORN", "AGENT"]);
+
+      // A real separator keeps the two lines from reading as one run-together
+      // token for find-in-page, copy, and assistive tech.
+      expect(level1Headings[0].text().replace(/\s+/g, " ")).toBe(
+        "GRIMICORN AGENT",
+      );
+
+      wrapper.unmount();
+    });
+
+    it.each(SECTION_HEADINGS)(
+      "renders the $text label as a semantic $tag, not a styled div",
+      async ({ tag, text }) => {
+        const wrapper = shallowMount(GrimicornPage);
+        await wrapper.vm.$nextTick();
+
+        expect(() => findHeadingByText(wrapper, tag, text)).not.toThrow();
+
+        wrapper.unmount();
+      },
+    );
+
+    it.each(SECTION_HEADINGS)(
+      'marks the decorative prefix aria-hidden so only "$text" forms the $tag accessible name',
+      async ({ tag, text }) => {
+        const wrapper = shallowMount(GrimicornPage);
+        await wrapper.vm.$nextTick();
+
+        const heading = findHeadingByText(wrapper, tag, text);
+        // The ornament (e.g. "—", "~ %") must exist and be hidden — dropping
+        // aria-hidden would fold it into the announced heading name.
+        expect(heading.findAll('[aria-hidden="true"]').length).toBeGreaterThan(
+          0,
+        );
+        expect(accessibleName(heading.element)).toBe(text);
+
+        wrapper.unmount();
+      },
+    );
+
+    it("emits headings in document order starting at h1 with no skipped levels", async () => {
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      // shallowMount only renders this component's own markup, so this covers
+      // the headings owned by GrimicornPage — enough, since none are delegated
+      // to child components.
+      const headingLevels = wrapper
+        .findAll("h1, h2, h3, h4, h5, h6")
+        .map((heading) => Number(heading.element.tagName[1]));
+
+      // Guard against a vacuous pass: the h1 plus every labelled section
+      // heading must actually be present before the ordering walk runs.
+      expect(headingLevels.length).toBeGreaterThanOrEqual(
+        SECTION_HEADINGS.length + 1,
+      );
+      expect(headingLevels[0]).toBe(1);
+      headingLevels.slice(1).forEach((level, previousIndex) => {
+        expect(level).toBeLessThanOrEqual(headingLevels[previousIndex] + 1);
+      });
+
+      wrapper.unmount();
+    });
   });
 
   describe("cursor-linked parallax and prefers-reduced-motion", () => {
@@ -599,6 +722,12 @@ describe("GrimicornPage", () => {
         );
       expect(mouseMoveRegistrationsWhileRunning).toHaveLength(1);
 
+      // The content timers share the same re-entrancy guard: the redundant
+      // "not reduced" event must not overwrite tagTimer/logTimer with a second
+      // pair whose ids stopContentTimers() could never clear. rAF is spied out
+      // here, so exactly the two intervals (tagline + log) should be pending.
+      expect(vi.getTimerCount()).toBe(2);
+
       // A genuine stop/resume cycle after that should still add exactly one
       // more registration, confirming the guard isn't just permanently
       // latched shut.
@@ -614,6 +743,20 @@ describe("GrimicornPage", () => {
       expect(mouseMoveRegistrationsAfterCycle).toHaveLength(2);
 
       wrapper.unmount();
+    });
+
+    it("clears the tagline and log timers on unmount so they cannot keep mutating after teardown", async () => {
+      mockPrefersReducedMotion(false);
+      mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      // rAF is spied out, so the only pending fake timers are the two intervals.
+      expect(vi.getTimerCount()).toBe(2);
+
+      wrapper.unmount();
+
+      expect(vi.getTimerCount()).toBe(0);
     });
 
     it("removes the exact prefers-reduced-motion change listener that was registered, on unmount", async () => {
@@ -700,10 +843,150 @@ describe("GrimicornPage", () => {
           PORTRAIT_REST_TRANSFORM,
         );
 
+        // Content timers fail closed on this path too: with the preference
+        // unknowable, the tagline and log stream stay frozen on their static
+        // seed rather than auto-mutating without a way to know it's safe.
+        const definedWrapper = wrapper as GrimicornWrapper;
+        const taglineAtMount = definedWrapper
+          .find(".text-fg-muted span:last-child")
+          .text();
+        await vi.advanceTimersByTimeAsync(
+          TAGLINE_ROTATION_INTERVAL_MS * 2 + LOG_APPEND_INTERVAL_MS * 2,
+        );
+        await definedWrapper.vm.$nextTick();
+        expect(
+          definedWrapper.find(".text-fg-muted span:last-child").text(),
+        ).toBe(taglineAtMount);
+        expect(definedWrapper.findAll(".border-l-2 div").length).toBe(
+          INITIAL_LOG_COUNT,
+        );
+
         wrapper?.unmount();
       } finally {
         window.matchMedia = originalMatchMedia;
       }
+    });
+
+    it("resumes the tagline rotation and log stream when the preference switches away from reduced motion at runtime", async () => {
+      const { setMatches } = mockPrefersReducedMotion(true);
+      mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      // Frozen while reduced motion is on.
+      const frozenTagline = wrapper
+        .find(".text-fg-muted span:last-child")
+        .text();
+      const frozenLogCount = wrapper.findAll(".border-l-2 div").length;
+      await vi.advanceTimersByTimeAsync(
+        TAGLINE_ROTATION_INTERVAL_MS + LOG_APPEND_INTERVAL_MS,
+      );
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find(".text-fg-muted span:last-child").text()).toBe(
+        frozenTagline,
+      );
+      expect(wrapper.findAll(".border-l-2 div").length).toBe(frozenLogCount);
+
+      setMatches(false);
+      await wrapper.vm.$nextTick();
+
+      // Append enough to push the stream past its cap, so this also exercises
+      // the .slice(-MAX_LOG_COUNT) trim rather than just "grew by some amount".
+      await vi.advanceTimersByTimeAsync(
+        TAGLINE_ROTATION_INTERVAL_MS + LOG_APPEND_INTERVAL_MS * 5,
+      );
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".text-fg-muted span:last-child").text()).not.toBe(
+        frozenTagline,
+      );
+      // 6 seeded + 5 appended, trimmed back to the cap. MAX_LOG_COUNT (8) >
+      // INITIAL_LOG_COUNT (6), so this still fails if the stream never resumed.
+      expect(MAX_LOG_COUNT).toBeGreaterThan(frozenLogCount);
+      expect(wrapper.findAll(".border-l-2 div").length).toBe(MAX_LOG_COUNT);
+
+      wrapper.unmount();
+    });
+
+    it("holds the first tagline and never auto-advances it when reduced motion is preferred at mount", async () => {
+      mockPrefersReducedMotion(true);
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      const initialTagline = wrapper
+        .find(".text-fg-muted span:last-child")
+        .text();
+      expect(initialTagline).toBeTruthy();
+
+      // Advance well past several rotation intervals: an unguarded timer would
+      // have swapped the tagline multiple times by now.
+      await vi.advanceTimersByTimeAsync(TAGLINE_ROTATION_INTERVAL_MS * 3);
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".text-fg-muted span:last-child").text()).toBe(
+        initialTagline,
+      );
+
+      wrapper.unmount();
+    });
+
+    it("shows the static initial log entries but never appends to the stream when reduced motion is preferred at mount", async () => {
+      mockPrefersReducedMotion(true);
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      // The static seed still renders — reduced motion suppresses the mutation,
+      // not the content itself.
+      expect(wrapper.findAll(".border-l-2 div").length).toBe(INITIAL_LOG_COUNT);
+
+      await vi.advanceTimersByTimeAsync(LOG_APPEND_INTERVAL_MS * 3);
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.findAll(".border-l-2 div").length).toBe(INITIAL_LOG_COUNT);
+
+      wrapper.unmount();
+    });
+
+    it("freezes the tagline and log stream where they are when the preference switches to reduced motion at runtime", async () => {
+      const { setMatches } = mockPrefersReducedMotion(false);
+      mockAnimationFrame();
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      // While motion is allowed the content advances as normal. One rotation
+      // interval both swaps the tagline once and appends one log line (6 → 7),
+      // deliberately stopping below MAX_LOG_COUNT so a later append would be
+      // observable as growth rather than silently trimmed at the cap — that
+      // keeps the frozen-log assertion below from passing vacuously.
+      const taglineBeforeStop = wrapper
+        .find(".text-fg-muted span:last-child")
+        .text();
+      await vi.advanceTimersByTimeAsync(TAGLINE_ROTATION_INTERVAL_MS);
+      await wrapper.vm.$nextTick();
+      expect(wrapper.find(".text-fg-muted span:last-child").text()).not.toBe(
+        taglineBeforeStop,
+      );
+
+      setMatches(true);
+      await wrapper.vm.$nextTick();
+
+      const taglineAtStop = wrapper
+        .find(".text-fg-muted span:last-child")
+        .text();
+      const logCountAtStop = wrapper.findAll(".border-l-2 div").length;
+      expect(logCountAtStop).toBeLessThan(MAX_LOG_COUNT);
+
+      await vi.advanceTimersByTimeAsync(
+        TAGLINE_ROTATION_INTERVAL_MS * 3 + LOG_APPEND_INTERVAL_MS * 3,
+      );
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.find(".text-fg-muted span:last-child").text()).toBe(
+        taglineAtStop,
+      );
+      expect(wrapper.findAll(".border-l-2 div").length).toBe(logCountAtStop);
+
+      wrapper.unmount();
     });
   });
 });
