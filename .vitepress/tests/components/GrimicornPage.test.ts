@@ -550,6 +550,43 @@ describe("GrimicornPage", () => {
     });
   });
 
+  describe("in-page navigation targets", () => {
+    // Pulls the fragment id out of an in-page anchor href ("/#status" or
+    // "#status" -> "status"), returning null for anything that isn't a
+    // same-page fragment (external URLs, or a bare "#" with no id).
+    function fragmentId(href: string) {
+      const hashIndex = href.indexOf("#");
+      if (hashIndex === -1) {
+        return null;
+      }
+      const id = href.slice(hashIndex + 1);
+      return id.length > 0 ? id : null;
+    }
+
+    it("points every in-page nav anchor at a real top-level <section> peer", async () => {
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      const fragmentIds = wrapper
+        .findAll("a[href]")
+        .map((link) => fragmentId(link.attributes("href") ?? ""))
+        .filter((id): id is string => id !== null);
+
+      // Guard against a vacuous pass: the nav must advertise at least the
+      // about + status peers before the resolution walk means anything.
+      expect(fragmentIds.length).toBeGreaterThanOrEqual(2);
+
+      // The reconciliation invariant: an advertised fragment must resolve to a
+      // <section> carrying that id (a genuine top-level peer), not to a nested
+      // div. This fails if "#links" is re-added to the nav while its panel
+      // stays an h3 embedded inside section#status.
+      fragmentIds.forEach((id) => {
+        const target = wrapper.find(`section#${id}`);
+        expect(target.exists()).toBe(true);
+      });
+    });
+  });
+
   describe("cursor-linked parallax and prefers-reduced-motion", () => {
     afterEach(() => {
       vi.restoreAllMocks();
