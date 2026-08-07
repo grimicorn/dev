@@ -573,23 +573,34 @@ describe("GrimicornPage", () => {
         .map((link) => fragmentId(link.attributes("href") ?? ""))
         .filter((id): id is string => id !== null);
 
-      // Guard against a vacuous pass: the nav must advertise at least the
-      // about + status peers before the resolution walk means anything.
-      expect(fragmentIds.length).toBeGreaterThanOrEqual(2);
+      // Pin the exact set of advertised in-page targets (deduped — the hero
+      // CTA repeats "#status"), matching this file's "pin, don't count"
+      // convention so dropping #about, or re-adding #links, fails here instead
+      // of silently changing coverage.
+      const advertisedTargets = [...new Set(fragmentIds)].sort();
+      expect(advertisedTargets).toEqual(["about", "status"]);
 
-      // The reconciliation invariant: an advertised fragment must resolve to a
-      // <section> carrying that id (a genuine top-level peer), not to a nested
-      // div. This fails if "#links" is re-added to the nav while its panel
-      // stays an h3 embedded inside section#status. Comparing against the
-      // collected section ids (rather than building a `section#${id}` selector)
-      // keeps ids that are legal HTML but illegal CSS from throwing, and names
-      // the offending fragment in the failure output.
-      const sectionIds = wrapper
-        .findAll("section[id]")
-        .map((section) => section.attributes("id"));
-      fragmentIds.forEach((id) => {
-        expect(sectionIds).toContain(id);
+      // The reconciliation invariant: each advertised fragment must resolve to
+      // a <section> carrying that id AND sitting at the top level (no ancestor
+      // <section>) — a genuine peer, not an h3 panel wrapped in a nested
+      // <section id="links"> inside section#status. Matching by id attribute
+      // (rather than a `section#${id}` selector) keeps ids that are legal HTML
+      // but illegal CSS from throwing.
+      const sections = wrapper.findAll("section[id]");
+      advertisedTargets.forEach((id) => {
+        const target = sections.find(
+          (section) => section.attributes("id") === id,
+        );
+        expect(
+          target,
+          `no <section id="${id}"> for nav anchor #${id}`,
+        ).toBeDefined();
+        const ancestorSection =
+          target?.element.parentElement?.closest("section") ?? null;
+        expect(ancestorSection).toBeNull();
       });
+
+      wrapper.unmount();
     });
   });
 
