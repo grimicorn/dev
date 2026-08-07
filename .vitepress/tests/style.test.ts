@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 const STYLE_CSS_PATH = resolve(process.cwd(), ".vitepress/theme/style.css");
 
 const BRAND_BG = "#0a0a0b";
+const BRAND_BG_TOKEN = "--color-bg";
 
 function readStyleCss() {
   return readFileSync(STYLE_CSS_PATH, "utf8");
@@ -14,10 +15,10 @@ describe("brand background token", () => {
   const css = readStyleCss();
 
   it("defines --color-bg in @theme as the brand background literal", () => {
-    const themeBlock = css.match(/@theme\s*\{([^}]*)\}/);
+    const themeBlock = css.match(/@theme\b[^{]*\{([\s\S]*?)\}/);
     expect(themeBlock, "@theme block not found").not.toBeNull();
     expect(themeBlock![1]).toMatch(
-      new RegExp(`--color-bg:\\s*${BRAND_BG}\\s*;`, "i"),
+      new RegExp(`${BRAND_BG_TOKEN}:\\s*${BRAND_BG}\\s*;`, "i"),
     );
   });
 
@@ -32,7 +33,9 @@ describe("brand background token", () => {
     );
     expect(htmlBodyBlock, "html/body rule not found").not.toBeNull();
     const block = htmlBodyBlock![1];
-    expect(block).toMatch(/background:\s*var\(--color-bg\)\s*;/);
+    expect(block).toMatch(
+      new RegExp(`background:\\s*var\\(${BRAND_BG_TOKEN}\\)\\s*;`),
+    );
     expect(block).not.toMatch(new RegExp(BRAND_BG, "i"));
   });
 });
