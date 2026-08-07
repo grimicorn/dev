@@ -203,6 +203,39 @@ function parseTranslateXPixels(transform: string) {
 const HERO_REST_TRANSFORM = "scale(1.06)";
 const PORTRAIT_REST_TRANSFORM = "scale(1.08)";
 
+// Locates the heading at `tag` whose text includes `text`, throwing (rather
+// than returning undefined) if none matches so callers can use the result
+// directly and a missing heading fails loudly at the call site.
+function findHeadingByText(
+  wrapper: GrimicornWrapper,
+  tag: string,
+  text: string,
+) {
+  const heading = wrapper
+    .findAll(tag)
+    .find((candidate) => candidate.text().includes(text));
+  if (!heading) {
+    throw new Error(`No <${tag}> containing "${text}" was found`);
+  }
+  return heading;
+}
+
+// The accessible name of a heading: the concatenated text of its direct child
+// nodes, skipping any element marked aria-hidden (so decorative ornaments like
+// "—" or "~ %" are excluded, matching how assistive tech computes the name).
+function accessibleName(element: Element) {
+  return Array.from(element.childNodes)
+    .filter(
+      (node) =>
+        node.nodeType !== Node.ELEMENT_NODE ||
+        (node as Element).getAttribute("aria-hidden") !== "true",
+    )
+    .map((node) => node.textContent ?? "")
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 describe("GrimicornPage", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -425,6 +458,92 @@ describe("GrimicornPage", () => {
     expect(colorfulButton.attributes("aria-pressed")).toBe("false");
 
     wrapper.unmount();
+  });
+
+  describe("semantic heading structure", () => {
+    // The section label / wordmark text that must be exposed as a real heading
+    // at the given level, so a regression back to a styled <div> fails here.
+    const SECTION_HEADINGS = [
+      { tag: "h2", text: "what it's doing right now" },
+      { tag: "h3", text: "grimicorn links --all" },
+    ];
+
+    it("exposes exactly one h1 carrying the whole wordmark as a single readable name", async () => {
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      const level1Headings = wrapper.findAll("h1");
+      expect(level1Headings).toHaveLength(1);
+
+      // Both wordmark lines live as distinct spans inside the single h1 (not
+      // split across separate heading levels).
+      const wordmarkLines = level1Headings[0]
+        .findAll("span")
+        .map((line) => line.text());
+      expect(wordmarkLines).toEqual(["GRIMICORN", "AGENT"]);
+
+      // A real separator keeps the two lines from reading as one run-together
+      // token for find-in-page, copy, and assistive tech.
+      expect(level1Headings[0].text().replace(/\s+/g, " ")).toBe(
+        "GRIMICORN AGENT",
+      );
+
+      wrapper.unmount();
+    });
+
+    it.each(SECTION_HEADINGS)(
+      "renders the $text label as a semantic $tag, not a styled div",
+      async ({ tag, text }) => {
+        const wrapper = shallowMount(GrimicornPage);
+        await wrapper.vm.$nextTick();
+
+        expect(() => findHeadingByText(wrapper, tag, text)).not.toThrow();
+
+        wrapper.unmount();
+      },
+    );
+
+    it.each(SECTION_HEADINGS)(
+      'marks the decorative prefix aria-hidden so only "$text" forms the $tag accessible name',
+      async ({ tag, text }) => {
+        const wrapper = shallowMount(GrimicornPage);
+        await wrapper.vm.$nextTick();
+
+        const heading = findHeadingByText(wrapper, tag, text);
+        // The ornament (e.g. "—", "~ %") must exist and be hidden — dropping
+        // aria-hidden would fold it into the announced heading name.
+        expect(heading.findAll('[aria-hidden="true"]').length).toBeGreaterThan(
+          0,
+        );
+        expect(accessibleName(heading.element)).toBe(text);
+
+        wrapper.unmount();
+      },
+    );
+
+    it("emits headings in document order starting at h1 with no skipped levels", async () => {
+      const wrapper = shallowMount(GrimicornPage);
+      await wrapper.vm.$nextTick();
+
+      // shallowMount only renders this component's own markup, so this covers
+      // the headings owned by GrimicornPage — enough, since none are delegated
+      // to child components.
+      const headingLevels = wrapper
+        .findAll("h1, h2, h3, h4, h5, h6")
+        .map((heading) => Number(heading.element.tagName[1]));
+
+      // Guard against a vacuous pass: the h1 plus every labelled section
+      // heading must actually be present before the ordering walk runs.
+      expect(headingLevels.length).toBeGreaterThanOrEqual(
+        SECTION_HEADINGS.length + 1,
+      );
+      expect(headingLevels[0]).toBe(1);
+      headingLevels.slice(1).forEach((level, previousIndex) => {
+        expect(level).toBeLessThanOrEqual(headingLevels[previousIndex] + 1);
+      });
+
+      wrapper.unmount();
+    });
   });
 
   describe("cursor-linked parallax and prefers-reduced-motion", () => {

@@ -338,33 +338,45 @@ onUnmounted(() => {
       >
         <!-- left -->
         <div>
+          <!-- Decorative eyebrow that sits above the h1, so it stays a div:
+               the h1 below is this section's heading, and promoting an element
+               that precedes the h1 to a heading would put a heading before the
+               page's h1. -->
           <div
             class="text-purple mb-[22px] text-xs tracking-[0.16em] uppercase"
           >
             — grim reaper × unicorn
           </div>
+          <!-- The GRIMICORN / AGENT wordmark is one title split across two
+               visually distinct lines, so it's a single h1 (two block spans)
+               rather than an h1 + h2 — splitting one brand name across two
+               heading levels would create a phantom "AGENT" subsection that
+               the tagline and CTAs below would nest under. The {{ " " }}
+               interpolation is a real space text node between the two spans:
+               without it Vue's whitespace-condense collapses the gap and the
+               name reads as one run-together word for find-in-page, copy, and
+               assistive tech. -->
           <h1
             class="font-display m-0 text-[52px] leading-[0.92] font-bold tracking-[-0.02em] sm:text-[68px] lg:text-[84px]"
           >
-            GRIMICORN
+            <span class="block">GRIMICORN</span>{{ " "
+            }}<span
+              class="animate-rainbow-pan block bg-clip-text text-transparent"
+              style="
+                background-image: linear-gradient(
+                  90deg,
+                  #ff2d9b,
+                  #fb923c,
+                  #facc15,
+                  #a3e635,
+                  #22d3ee,
+                  #a855f7,
+                  #ff2d9b
+                );
+              "
+              >AGENT</span
+            >
           </h1>
-          <div
-            class="font-display animate-rainbow-pan bg-clip-text text-[52px] leading-[0.92] font-bold tracking-[-0.02em] text-transparent sm:text-[68px] lg:text-[84px]"
-            style="
-              background-image: linear-gradient(
-                90deg,
-                #ff2d9b,
-                #fb923c,
-                #facc15,
-                #a3e635,
-                #22d3ee,
-                #a855f7,
-                #ff2d9b
-              );
-            "
-          >
-            AGENT
-          </div>
 
           <div
             class="text-fg-muted mt-[26px] flex items-center gap-[10px] text-[13px]"
@@ -487,9 +499,9 @@ onUnmounted(() => {
 
       <!-- terminal section -->
       <section id="status" class="py-14">
-        <div class="text-fg-dim mb-5 text-xs tracking-[0.16em] uppercase">
-          — what it's doing right now
-        </div>
+        <h2 class="text-fg-dim mb-5 text-xs tracking-[0.16em] uppercase">
+          <span aria-hidden="true">—</span> what it's doing right now
+        </h2>
 
         <div
           class="overflow-hidden rounded-xl border border-white/[0.08] text-[#d4d4d8]"
@@ -655,9 +667,10 @@ onUnmounted(() => {
               </div>
 
               <div>
-                <div class="mb-[10px] text-[12.5px] text-[#737b8a]">
-                  <span class="text-lime">~ %</span> grimicorn links --all
-                </div>
+                <h3 class="mb-[10px] text-[12.5px] text-[#737b8a]">
+                  <span class="text-lime" aria-hidden="true">~ %</span>
+                  grimicorn links --all
+                </h3>
                 <div class="flex flex-col gap-2">
                   <a
                     href="https://github.com/grimicorn-agent"
