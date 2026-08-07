@@ -86,7 +86,8 @@ function readGlobalHeadersBlock() {
   const config = readFileSync(NETLIFY_CONFIG_PATH, "utf8");
   const blocks = config
     .split(/^\[\[headers\]\]/m)
-    .filter((block) => /for\s*=\s*"([^"]*)"/.test(block));
+    .map((block) => block.split(/^\[(?!headers\.)/m)[0])
+    .filter((block) => /^\s*for\s*=\s*"([^"]*)"/m.test(block));
   const globalBlocks = blocks.filter(
     (block) => block.match(/for\s*=\s*"([^"]*)"/)?.[1] === GLOBAL_HEADERS_PATH,
   );
@@ -102,7 +103,7 @@ function readGlobalHeadersBlock() {
 
 function readCspDirectives() {
   const match = readGlobalHeadersBlock().match(
-    new RegExp(`${CSP_HEADER_NAME}\\s*=\\s*"([^"]*)"`),
+    new RegExp(`^\\s*${CSP_HEADER_NAME}\\s*=\\s*"([^"]*)"`, "m"),
   );
   if (!match) {
     throw new Error(`netlify.toml is missing a ${CSP_HEADER_NAME} header`);
