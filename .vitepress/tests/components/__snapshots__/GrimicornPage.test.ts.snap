@@ -15,9 +15,21 @@ exports[`GrimicornPage > renders correctly 1`] = `
     <section id="about" class="grid grid-cols-1 gap-8 pt-10 pb-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-[52px] lg:pt-16 lg:pb-14">
       <!-- left -->
       <div>
+        <!-- Decorative eyebrow that sits above the h1, so it stays a div:
+               the h1 below is this section's heading, and promoting an element
+               that precedes the h1 to a heading would put a heading before the
+               page's h1. -->
         <div class="text-purple mb-[22px] text-xs tracking-[0.16em] uppercase"> — grim reaper × unicorn </div>
-        <h1 class="font-display m-0 text-[52px] leading-[0.92] font-bold tracking-[-0.02em] sm:text-[68px] lg:text-[84px]"> GRIMICORN </h1>
-        <div class="font-display animate-rainbow-pan bg-clip-text text-[52px] leading-[0.92] font-bold tracking-[-0.02em] text-transparent sm:text-[68px] lg:text-[84px]" style="background-image: linear-gradient(90deg, #ff2d9b, #fb923c, #facc15, #a3e635, #22d3ee, #a855f7, #ff2d9b);"> AGENT </div>
+        <!-- The GRIMICORN / AGENT wordmark is one title split across two
+               visually distinct lines, so it's a single h1 (two block spans)
+               rather than an h1 + h2 — splitting one brand name across two
+               heading levels would create a phantom "AGENT" subsection that
+               the tagline and CTAs below would nest under. The {{ " " }}
+               interpolation is a real space text node between the two spans:
+               without it Vue's whitespace-condense collapses the gap and the
+               name reads as one run-together word for find-in-page, copy, and
+               assistive tech. -->
+        <h1 class="font-display m-0 text-[52px] leading-[0.92] font-bold tracking-[-0.02em] sm:text-[68px] lg:text-[84px]"><span class="block">GRIMICORN</span> <span class="animate-rainbow-pan block bg-clip-text text-transparent" style="background-image: linear-gradient(90deg, #ff2d9b, #fb923c, #facc15, #a3e635, #22d3ee, #a855f7, #ff2d9b);">AGENT</span></h1>
         <div class="text-fg-muted mt-[26px] flex items-center gap-[10px] text-[13px]"><span class="text-lime">▸</span><span>spawning gremlins on a branch you forgot about…</span></div>
         <p class="text-fg-muted mt-[26px] max-w-none text-sm leading-[1.8] lg:max-w-[440px]"> A chaotic coding sidekick that builds the things I don't have time for — then unleashes a swarm of gremlins to break them until they can't break in production. Dark, dead, colorful and lively at the same time. </p>
         <div class="mt-[34px] flex flex-wrap gap-[14px]"><a href="https://github.com/grimicorn-agent" target="_blank" rel="noopener noreferrer" class="text-bg animate-rainbow-pan rounded-lg px-[22px] py-[13px] text-[13px] font-bold no-underline" style="background-image: linear-gradient(90deg, #ff2d9b, #fb923c, #facc15, #a3e635, #22d3ee, #a855f7);"> view on github → </a><a href="#status" class="text-fg rounded-lg border border-white/[0.16] bg-white/[0.02] px-[22px] py-[13px] text-[13px] font-medium no-underline"> what's it doing? ↓ </a></div>
@@ -37,7 +49,7 @@ exports[`GrimicornPage > renders correctly 1`] = `
     </section><!-- rainbow divider -->
     <div class="animate-rainbow-pan h-[2px]" style="background-image: linear-gradient(90deg, #ff2d9b, #fb923c, #facc15, #a3e635, #22d3ee, #a855f7, #ff2d9b);"></div><!-- terminal section -->
     <section id="status" class="py-14">
-      <div class="text-fg-dim mb-5 text-xs tracking-[0.16em] uppercase"> — what it's doing right now </div>
+      <h2 class="text-fg-dim mb-5 text-xs tracking-[0.16em] uppercase"><span aria-hidden="true">—</span> what it's doing right now </h2>
       <div class="overflow-hidden rounded-xl border border-white/[0.08] text-[#d4d4d8]" style="background: #08080a; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);">
         <!-- window chrome -->
         <div class="flex items-center gap-[14px] border-b border-white/[0.07] bg-white/[0.015] px-[22px] py-4"><span class="flex gap-2"><span class="bg-pink h-3 w-3 rounded-full"></span><span class="bg-yellow h-3 w-3 rounded-full"></span><span class="bg-lime h-3 w-3 rounded-full"></span></span><span class="text-fg-subtle ml-[6px] truncate text-[12.5px]">grimicorn-agent — zsh — 124×40</span></div>
@@ -87,7 +99,7 @@ exports[`GrimicornPage > renders correctly 1`] = `
               </div>
             </div>
             <div>
-              <div class="mb-[10px] text-[12.5px] text-[#737b8a]"><span class="text-lime">~ %</span> grimicorn links --all </div>
+              <h3 class="mb-[10px] text-[12.5px] text-[#737b8a]"><span class="text-lime" aria-hidden="true">~ %</span> grimicorn links --all </h3>
               <div class="flex flex-col gap-2"><a href="https://github.com/grimicorn-agent" class="hover:border-purple hover:bg-purple/[0.06] flex items-center justify-between rounded-[9px] border border-white/[0.1] bg-white/[0.02] px-[14px] py-[11px] no-underline transition-colors" target="_blank" rel="noopener noreferrer"><span class="text-[13px] font-bold text-white">github</span><span class="text-purple text-[14px]">↗</span></a>
                 <!-- <a
                     href="#"
