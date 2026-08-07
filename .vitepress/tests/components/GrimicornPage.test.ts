@@ -551,11 +551,20 @@ describe("GrimicornPage", () => {
   });
 
   describe("in-page navigation targets", () => {
+    // Every in-page fragment the page advertises; each must resolve to a
+    // top-level <section>. The named set (rather than a bare length check) is
+    // the "pin, don't count" convention this file uses elsewhere, and the
+    // obvious place to add "links" back if that panel is ever promoted to a
+    // real section.
+    const ADVERTISED_FRAGMENT_TARGETS = ["about", "status"];
+
     // Pulls the fragment id out of an in-page anchor href ("/#status" or
     // "#status" -> "status"), returning null for anything that isn't a
     // same-page fragment: external URLs (matched only if they start with the
     // in-page prefixes, so "https://…#readme" is excluded) and a bare "#" with
-    // no id.
+    // no id. Deliberately not reused from isExternalHref: the prefix allowlist
+    // must also exclude cross-page hrefs like "/about#status", which a scheme
+    // check would wrongly admit as same-page.
     function fragmentId(href: string) {
       if (!href.startsWith("#") && !href.startsWith("/#")) {
         return null;
@@ -578,7 +587,7 @@ describe("GrimicornPage", () => {
       // convention so dropping #about, or re-adding #links, fails here instead
       // of silently changing coverage.
       const advertisedTargets = [...new Set(fragmentIds)].sort();
-      expect(advertisedTargets).toEqual(["about", "status"]);
+      expect(advertisedTargets).toEqual(ADVERTISED_FRAGMENT_TARGETS);
 
       // The reconciliation invariant: each advertised fragment must resolve to
       // a <section> carrying that id AND sitting at the top level (no ancestor
@@ -597,7 +606,10 @@ describe("GrimicornPage", () => {
         ).toBeDefined();
         const ancestorSection =
           target?.element.parentElement?.closest("section") ?? null;
-        expect(ancestorSection).toBeNull();
+        expect(
+          ancestorSection,
+          `<section id="${id}"> for nav anchor #${id} is nested inside another <section>`,
+        ).toBeNull();
       });
 
       wrapper.unmount();
